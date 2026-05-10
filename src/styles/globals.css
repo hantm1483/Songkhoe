@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-be-vietnam-pro: "Be Vietnam Pro", sans-serif;
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+    font-size: 18px;
+  }
+
+  body {
+    @apply bg-surface text-on-surface;
+    font-family: var(--font-be-vietnam-pro);
+  }
+
+  * {
+    @apply border-outline-variant;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-primary;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply font-beVietnamPro;
+  }
+
+  /* Scrollbar styling for warmth */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-container-low;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-outline-variant rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-outline;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface-container-lowest rounded-lg p-4 shadow-soft-elevation;
+  }
+
+  .card-elevated {
+    @apply bg-surface-container-low rounded-lg p-4 shadow-soft-teal;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-beVietnamPro font-semibold
+           min-h-touch-target px-6 py-3 transition-all duration-200
+           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary text-on-primary hover:bg-primary/90 active:bg-primary/80;
+  }
+
+  .btn-secondary {
+    @apply btn bg-secondary text-on-secondary hover:bg-secondary/90 active:bg-secondary/80;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-primary border border-primary/30
+           hover:bg-primary/10 active:bg-primary/20;
+  }
+
+  .input-field {
+    @apply w-full min-h-touch-target px-4 py-3 rounded-lg
+           bg-surface-container-low border border-outline
+           text-body-lg text-on-surface placeholder:text-on-surface-variant
+           focus:border-primary focus:ring-2 focus:ring-primary/20
+           transition-all duration-200;
+  }
+
+  .label {
+    @apply text-label-lg text-on-surface-variant mb-2 block;
+  }
+
+  .container-padding {
+    @apply px-6 md:px-container-padding;
+  }
+
+  .section-gap {
+    @apply space-y-stack-gap;
+  }
+
+  .touch-target {
+    @apply min-h-touch-target min-w-touch-target;
+  }
+}
+
+@layer utilities {
+  .text-display-lg {
+    font-size: 40px;
+    line-height: 48px;
+    font-weight: 700;
+    font-family: var(--font-be-vietnam-pro);
+  }
+
+  .text-headline-md {
+    font-size: 24px;
+    line-height: 32px;
+    font-weight: 600;
+    font-family: var(--font-be-vietnam-pro);
+  }
+
+  .text-body-lg {
+    font-size: 18px;
+    line-height: 28px;
+    font-weight: 400;
+    font-family: var(--font-be-vietnam-pro);
+  }
+
+  .text-body-md {
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 400;
+    font-family: var(--font-be-vietnam-pro);
+  }
+
+  .text-label-lg {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    font-family: var(--font-be-vietnam-pro);
+  }
+
+  .bg-surface-tint {
+    background-color: rgba(13, 105, 105, 0.1);
+  }
+
+  .gradient-warm {
+    background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-dim) 100%);
+  }
+}
