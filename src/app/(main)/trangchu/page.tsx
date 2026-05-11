@@ -6,6 +6,7 @@ import { ChevronRight, ArrowLeft } from "lucide-react";
 import { Heart, Activity, Sparkles, PenTool, Newspaper, BookOpen, Utensils, Star, ArrowRight, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Page } from "@/components/layout/page";
 
 // Re-export for backward compatibility
 export { Heart as Icon, Badge, Card };
@@ -70,6 +71,7 @@ export default function DashboardPage() {
   ];
 
   return (
+    <Page title="Trang chủ">
     <div className="p-6 lg:p-10 space-y-10 max-w-7xl mx-auto">
       {/* Hero Section - EXACT from GlucoCare */}
       <section className="relative overflow-hidden rounded-3xl bg-primary min-h-[220px] flex items-center px-8 lg:px-12 py-8 text-white shadow-2xl shadow-primary/30">
@@ -180,5 +182,6 @@ export default function DashboardPage() {
         </aside>
       </div>
     </div>
+    </Page>
   );
 }
