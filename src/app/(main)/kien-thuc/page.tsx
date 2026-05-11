@@ -1,216 +1,121 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Page } from "@/components/layout/page";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
-import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
+import { motion } from "framer-motion";
 
-// Types
-interface Article {
-  id: string;
-  title: string;
-  content: string;
-  category: string;
-  image_url?: string;
-  read_time_minutes: number;
-  created_at: string;
-}
-
-// Categories with icons
+// Categories - exact from GlucoCare source
 const CATEGORIES = [
-  { value: "all", label: "Tất cả" },
-  { value: "dinh-duong", label: "Dinh dưỡng", icon: "restaurant" },
-  { value: "the-duc", label: "Thể dục", icon: "fitness_center" },
-  { value: "thuoc", label: "Thuốc", icon: "medication" },
-  { value: "phong-ngua", label: "Phòng ngừa", icon: "health_and_safety" },
+  { name: "Toàn tập về tiểu đường", count: "15 bài viết", icon: "menu_book" },
+  { name: "Sử dụng thiết bị tại nhà", count: "8 bài viết", icon: "settings" },
+  { name: "Thuốc và Điều trị", count: "12 bài viết", icon: "medication" },
+  { name: "Hỏi đáp chuyên gia", count: "50+ câu hỏi", icon: "help" },
 ];
 
-// Generate mock articles
-function generateMockArticles(): Article[] {
-  return [
-    {
-      id: "1",
-      title: "Chế độ ăn uống cho người tiểu đường type 2",
-      content: "...",
-      category: "dinh-duong",
-      image_url: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600",
-      read_time_minutes: 5,
-      created_at: new Date(-7 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "2",
-      title: "Tập thể dục an toàn cho người tiểu đường",
-      content: "...",
-      category: "the-duc",
-      image_url: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600",
-      read_time_minutes: 4,
-      created_at: new Date(-14 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "3",
-      title: "Hiểu đúng về thuốc điều trị tiểu đường",
-      content: "...",
-      category: "thuoc",
-      image_url: "https://images.unsplash.com/photo-1584308666744-24e5a63e9b48?w=600",
-      read_time_minutes: 6,
-      created_at: new Date(-21 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "4",
-      title: "Phòng ngừa biến chứng tiểu đường",
-      content: "...",
-      category: "phong-ngua",
-      image_url: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600",
-      read_time_minutes: 5,
-      created_at: new Date(-28 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "5",
-      title: "Nhận biết và xử lý hạ đường huyết",
-      content: "...",
-      category: "phong-ngua",
-      image_url: "https://images.unsplash.com/photo-1559757175-5700dde675bc?w=600",
-      read_time_minutes: 4,
-      created_at: new Date(-35 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
-}
+// Tutorials - exact from GlucoCare source
+const TUTORIALS = [
+  { title: "Hiểu về tiểu đường Type 2 trong 5 phút", desc: "Nguyên nhân, triệu chứng và cơ chế hoạt động của insulin.", time: "05:24", image: "https://images.unsplash.com/photo-1530026405186-ed1f139d73f0?auto=format&fit=crop&q=80&w=600" },
+  { title: "Cách sử dụng máy đo đường huyết chuẩn xác", desc: "Hướng dẫn từng bước để có kết quả đo chính xác nhất tại nhà.", time: "08:15", image: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&q=80&w=600" },
+  { title: "Tầm quan trọng của HbA1c", desc: "Tại sao chỉ số này lại quan trọng hơn cả đường huyết tức thời?", time: "04:50", image: "https://images.unsplash.com/photo-1579154235884-332c411d04d4?auto=format&fit=crop&q=80&w=600" },
+];
 
-// Welcome Banner - primary-container bg, rounded-3xl
-function WelcomeBanner() {
+export default function KnowledgePage() {
   return (
-    <div className="relative rounded-3xl bg-gradient-to-br from-primary-container to-secondary-container p-6 overflow-hidden">
-      <div className="absolute right-0 bottom-0 w-32 h-32 opacity-20">
-        <Icon name="school" className="w-full h-full" />
-      </div>
-      <div className="relative z-10">
-        <h2 className="text-headline-md text-on-primary-container mb-2">
-          Chào mừng đến Cổng thông tin
-        </h2>
-        <p className="text-body-md text-on-primary-container/80 mb-4">
-          Dành cho những bước đi đầu tiên
-        </p>
-        <Button variant="primary" className="shadow-lg active:scale-95">
-          Bắt đầu học ngay
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// Article Card - rounded-3xl, image hover:scale-105
-function ArticleCard({ article, onClick }: { article: Article; onClick: () => void }) {
-  const categoryLabel =
-    CATEGORIES.find((c) => c.value === article.category)?.label || article.category;
-
-  return (
-    <button
-      onClick={onClick}
-      className="block w-full text-left rounded-3xl overflow-hidden bg-surface-container-lowest border border-outline-variant hover:shadow-lg transition-all duration-200 group"
-    >
-      <div className="aspect-video overflow-hidden">
-        {article.image_url && (
-          <img
-            src={article.image_url}
-            alt={article.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        )}
-      </div>
-      <div className="p-4">
-        <span className="inline-block px-2 py-1 rounded-lg text-label-lg font-medium bg-secondary-container text-on-secondary-container mb-2">
-          {categoryLabel}
-        </span>
-        <h3 className="text-body-lg font-semibold text-on-surface mb-1 line-clamp-2">
-          {article.title}
-        </h3>
-        <div className="flex items-center gap-1 text-label-lg text-on-surface-variant">
-          <Icon name="schedule" className="w-4 h-4" />
-          {article.read_time_minutes} phút
+    <Page title="Kiến thức">
+      <div className="p-6 lg:p-10 space-y-10 max-w-7xl mx-auto pb-20">
+        {/* Back Button */}
+        <div className="flex items-center gap-2 text-slate-500 hover:text-primary group transition-colors">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="p-2 rounded-xl group-hover:bg-primary/10 transition-colors">
+              <Icon name="arrow_back" className="w-5 h-5" />
+            </div>
+            <span className="text-sm font-semibold">Trang chủ</span>
+          </Link>
         </div>
-      </div>
-    </button>
-  );
-}
 
-// Main Page Component
-export default function KienThucPage() {
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [loading, setLoading] = useState(true);
+        {/* Header - exact Badge variant primary, text-4xl h1, italic font-serif span */}
+        <header className="space-y-4">
+          <Badge variant="success">Thư viện kiến thức</Badge>
+          <h1 className="text-4xl font-extrabold text-slate-800 leading-tight">Mọi thứ bạn cần biết về <br/><span className="text-primary italic font-serif">Kiểm soát tiểu đường</span></h1>
+          <p className="text-slate-500 text-lg max-w-2xl">Được biên soạn bởi đội ngũ bác sĩ hàng đầu, trình bày dễ hiểu và khoa học.</p>
+        </header>
 
-  useEffect(() => {
-    setTimeout(() => {
-      const data = generateMockArticles();
-      setArticles(data);
-      setFilteredArticles(data);
-      setLoading(false);
-    }, 300);
-  }, []);
-
-  // Filter articles when category changes
-  useEffect(() => {
-    if (selectedCategory === "all") {
-      setFilteredArticles(articles);
-    } else {
-      setFilteredArticles(articles.filter((a) => a.category === selectedCategory));
-    }
-  }, [articles, selectedCategory]);
-
-  return (
-    <Page title="Kiến thức cơ bản">
-      <div className="p-6 space-y-4">
-        {/* Welcome Banner */}
-        <WelcomeBanner />
-
-        {/* Category Filter */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.value}
-              onClick={() => setSelectedCategory(cat.value)}
-              className={cn(
-                "flex-shrink-0 flex items-center gap-1 px-4 py-2 rounded-full min-h-touch-target text-label-lg",
-                "transition-colors duration-200",
-                selectedCategory === cat.value
-                  ? "bg-primary text-on-primary"
-                  : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
-              )}
-            >
-              {cat.icon && <Icon name={cat.icon} className="w-4 h-4" />}
-              {cat.label}
-            </button>
+        {/* Main Categories Row - exact grid-cols-2 sm:grid-cols-2 lg:grid-cols-4, p-4 bg-white rounded-3xl border */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {CATEGORIES.map((cat, idx) => (
+            <motion.div key={cat.name} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}>
+              <div className="group cursor-pointer p-4 bg-white rounded-3xl border border-slate-100 hover:border-primary/40 hover:shadow-xl transition-all duration-300 h-full">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                    <Icon name={cat.icon as any} className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-slate-800 mb-0.5 text-sm leading-tight truncate">{cat.name}</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{cat.count}</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           ))}
         </div>
 
-        {/* Articles Grid - 3 columns */}
-        {!loading ? (
-          filteredArticles.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredArticles.map((article) => (
-                <ArticleCard
-                  key={article.id}
-                  article={article}
-                  onClick={() => {}}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Icon name="auto_stories" className="w-12 h-12 text-on-surface-variant mx-auto mb-3" />
-              <p className="text-body-lg text-on-surface-variant">
-                Không tìm thấy bài viết nào
-              </p>
-            </div>
-          )
-        ) : (
-          <div className="text-center py-12 text-on-surface-variant">
-            Đang tải...
+        {/* Featured Video Tutorials - exact grid-cols-1 md:grid-cols-3, aspect-[4/3], rounded-3xl */}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-slate-800 tracking-tight">Hướng dẫn từng bước (Video)</h2>
           </div>
-        )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {TUTORIALS.map((item, idx) => (
+              <motion.div key={item.title} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 + idx * 0.1 }}>
+                <div className="group cursor-pointer">
+                  <div className="relative rounded-3xl overflow-hidden aspect-[4/3] bg-slate-200 mb-4 shadow-lg">
+                    <img src={item.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={item.title} />
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px]">
+                      <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center text-primary shadow-2xl scale-75 group-hover:scale-100 transition-transform">
+                        <Icon name="play_arrow" className="w-8 h-8" filled />
+                      </div>
+                    </div>
+                    <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-[10px] font-bold text-white flex items-center gap-1">
+                      <Icon name="schedule" className="w-3 h-3" /> {item.time}
+                    </div>
+                  </div>
+                  <h4 className="font-bold text-slate-800 group-hover:text-primary transition-colors mb-2 leading-snug text-sm">{item.title}</h4>
+                  <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{item.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
+        {/* Coming Soon Section - exact bg-slate-900 rounded-[40px], amber accent */}
+        <section className="bg-slate-900 rounded-[40px] p-10 text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-6">
+              <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span>
+              <span className="text-xs font-bold uppercase tracking-widest text-amber-400">Sắp xuất hiện</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+              <div>
+                <h2 className="text-3xl font-bold mb-4">Khóa học chuyên sâu: <br/>Làm chủ đường huyết sau 30 ngày</h2>
+                <p className="text-white/60 mb-8 max-w-sm text-sm">Chương trình đào tạo tương tác với lộ trình cá nhân hóa, giúp bạn nắm vững kiến thức và kỹ năng tự chăm sóc.</p>
+                <div className="flex gap-4">
+                  <button className="bg-amber-400 text-slate-950 font-bold px-8 py-3.5 rounded-2xl shadow-xl shadow-amber-400/20 hover:bg-amber-300 transition-all active:scale-95">Đăng ký nhận tin</button>
+                  <button className="flex items-center gap-2 px-8 py-3.5 border border-white/20 rounded-2xl font-bold hover:bg-white/10 transition-all text-sm">Xem nội dung <Icon name="open_in_new" className="w-4 h-4" /></button>
+                </div>
+              </div>
+              <div className="hidden md:flex justify-end pr-10">
+                <div className="w-48 h-48 border-4 border-amber-400/20 rounded-full flex items-center justify-center">
+                  <div className="w-32 h-32 bg-amber-400 rounded-full flex items-center justify-center text-slate-900 text-4xl font-black">30</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Decorative mask */}
+          <div className="absolute right-0 top-0 bottom-0 w-2/3 bg-gradient-to-l from-amber-400/10 to-transparent"></div>
+        </section>
       </div>
     </Page>
   );

@@ -1,6 +1,7 @@
 /**
  * API Response Helpers
  * Provides consistent response format for all API endpoints
+ * Zero Trust: Includes security headers in all responses
  */
 
 export interface ApiError {
@@ -21,14 +22,26 @@ export interface ApiErrorResponse {
 export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 /**
- * Create a successful response
+ * Security headers for all API responses (Zero Trust)
+ */
+export const SECURITY_HEADERS = {
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+  "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';",
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "X-XSS-Protection": "1; mode=block",
+} as const;
+
+/**
+ * Create a successful response with security headers
  */
 export function successResponse<T>(data: T): ApiResponse<T> {
   return { data, error: null };
 }
 
 /**
- * Create an error response
+ * Create an error response with security headers
  */
 export function errorResponse(message: string, code: string = "INTERNAL_ERROR"): ApiResponse<never> {
   return {
@@ -86,4 +99,11 @@ export async function parseBody<T>(request: Request): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Get security headers object for Response construction
+ */
+export function getSecurityHeaders(): Record<string, string> {
+  return { ...SECURITY_HEADERS };
 }
