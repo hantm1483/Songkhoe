@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { UtensilsCrossed, Plus, Clock, ChevronRight } from "lucide-react";
+import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 
 // Types
@@ -26,24 +26,10 @@ const GI_OPTIONS = [
   { value: "high", label: "Cao (GI > 70)" },
 ];
 
-const TIME_OPTIONS = [
-  { value: "06:00", label: "06:00" },
-  { value: "07:00", label: "07:00" },
-  { value: "08:00", label: "08:00" },
-  { value: "09:00", label: "09:00" },
-  { value: "10:00", label: "10:00" },
-  { value: "11:00", label: "11:00" },
-  { value: "12:00", label: "12:00" },
-  { value: "13:00", label: "13:00" },
-  { value: "14:00", label: "14:00" },
-  { value: "15:00", label: "15:00" },
-  { value: "16:00", label: "16:00" },
-  { value: "17:00", label: "17:00" },
-  { value: "18:00", label: "18:00" },
-  { value: "19:00", label: "19:00" },
-  { value: "20:00", label: "20:00" },
-  { value: "21:00", label: "21:00" },
-];
+const TIME_OPTIONS = Array.from({ length: 15 }, (_, i) => ({
+  value: `${6 + i}:00`,
+  label: `${6 + i}:00`,
+}));
 
 // Generate mock meals
 function generateMockMeals(): MealLog[] {
@@ -80,22 +66,6 @@ function generateMockMeals(): MealLog[] {
       notes: "Xúp + thịt gà + cơm",
       created_at: new Date(Date.now() - 0 * 24 * 60 * 60 * 1000).toISOString(),
     },
-    {
-      id: "5",
-      name: "Bữa sáng",
-      gi_level: "medium",
-      time: "07:30",
-      notes: "Bánh mì trứng",
-      created_at: new Date(-1 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "6",
-      name: "Bữa trưa",
-      gi_level: "low",
-      time: "12:00",
-      notes: "Cơm + thịt bò + rau muống",
-      created_at: new Date(-1 * 24 * 60 * 60 * 1000).toISOString(),
-    },
   ];
 
   return meals.sort(
@@ -103,158 +73,80 @@ function generateMockMeals(): MealLog[] {
   );
 }
 
-// GI Indicator Component
-function GIIndicator({ level }: { level: "low" | "medium" | "high" }) {
-  const config = {
-    low: {
-      label: "GI Thấp",
-      color: "bg-primary/10 text-primary border-primary/20",
-      description: "Tăng đường huyết chậm",
-    },
-    medium: {
-      label: "GI Trung bình",
-      color: "bg-amber-100 text-amber-700 border-amber-200",
-      description: "Tăng đường huyết vừa",
-    },
-    high: {
-      label: "GI Cao",
-      color: "bg-error/10 text-error border-error/20",
-      description: "Tăng đường huyết nhanh",
-    },
-  };
-
-  const { label, color, description } = config[level];
-
+// GI Legend - emoji colored
+function GILegend() {
   return (
-    <div
-      className={cn(
-        "inline-flex flex-col items-center px-3 py-1.5 rounded-full border",
-        color
-      )}
-    >
-      <span className="text-label-lg font-semibold">{label}</span>
-      <span className="text-xs opacity-75">{description}</span>
+    <div className="space-y-2 p-4 rounded-2xl bg-surface-container-lowest">
+      <div className="flex items-center gap-2 text-body-md">
+        <span className="w-3 h-3 rounded-full bg-primary" />
+        <span className="text-on-surface">Thấp:</span>
+        <span className="text-on-surface-variant">Rau xanh, đậu, cá</span>
+      </div>
+      <div className="flex items-center gap-2 text-body-md">
+        <span className="w-3 h-3 rounded-full bg-warning" />
+        <span className="text-on-surface">Trung bình:</span>
+        <span className="text-on-surface-variant">Gạo, bánh mì</span>
+      </div>
+      <div className="flex items-center gap-2 text-body-md">
+        <span className="w-3 h-3 rounded-full bg-error" />
+        <span className="text-on-surface">Cao:</span>
+        <span className="text-on-surface-variant">Bánh ngọt, nước ngọt</span>
+      </div>
     </div>
   );
 }
 
-// Meal Log Form
-function MealLogForm({
-  onSubmit,
-  onCancel,
-}: {
-  onSubmit: (data: { name: string; gi_level: string; time: string; notes?: string }) => void;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [giLevel, setGiLevel] = useState("low");
-  const [time, setTime] = useState("12:00");
-  const [notes, setNotes] = useState("");
-
-  const handleSubmit = () => {
-    if (!name.trim()) return;
-    onSubmit({
-      name: name.trim(),
-      gi_level: giLevel,
-      time,
-      notes: notes || undefined,
-    });
-  };
-
+// GI Badge
+function GIBadge({ level }: { level: "low" | "medium" | "high" }) {
   return (
-    <Card variant="elevated" className="w-full">
-      <CardHeader>
-        <CardTitle>Thêm bữa ăn</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Input
-          label="Tên bữa ăn"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="VD: Bữa sáng, Bữa trưa..."
-        />
-
-        <Select
-          label="Chỉ số GI"
-          options={GI_OPTIONS}
-          value={giLevel}
-          onChange={(e) => setGiLevel(e.target.value)}
-        />
-
-        <Select
-          label="Giờ ăn"
-          options={TIME_OPTIONS}
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-        />
-
-        <Input
-          label="Ghi chú món ăn"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="VD: Cơm + cá + rau..."
-        />
-
-        <div className="flex gap-3 pt-2">
-          <Button variant="primary" onClick={handleSubmit} className="flex-1">
-            <Plus className="w-5 h-5" />
-            Lưu
-          </Button>
-          <Button variant="ghost" onClick={onCancel}>
-            Huỷ
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <span className={cn(
+      "px-2 py-1 rounded-full text-label-lg font-medium",
+      level === "low" && "bg-primary/10 text-primary",
+      level === "medium" && "bg-warning/10 text-warning",
+      level === "high" && "bg-error/10 text-error"
+    )}>
+      {level === "low" ? "GI Thấp" : level === "medium" ? "GI TB" : "GI Cao"}
+    </span>
   );
 }
 
-// Meal History List
-function MealHistoryList({ meals }: { meals: MealLog[] }) {
-  // Group by date
-  const grouped: Record<string, MealLog[]> = {};
-  meals.forEach((meal) => {
-    const dateKey = new Date(meal.created_at).toLocaleDateString("vi-VN", {
-      weekday: "long",
-      day: "numeric",
-      month: "numeric",
-    });
-    if (!grouped[dateKey]) grouped[dateKey] = [];
-    grouped[dateKey].push(meal);
-  });
-
+// Meal History Item - rounded-2xl, GI badge
+function MealHistoryItem({ meal }: { meal: MealLog }) {
   return (
-    <div className="space-y-4">
-      {Object.entries(grouped).map(([date, items]) => (
-        <div key={date}>
-          <h3 className="text-label-lg font-semibold text-on-surface-variant mb-2">
-            {date}
-          </h3>
-          <div className="space-y-2">
-            {items.map((meal) => (
-              <div
-                key={meal.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-surface-container-low"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="bg-surface-container-high p-2 rounded-lg">
-                    <UtensilsCrossed className="w-5 h-5 text-on-surface-variant" />
-                  </div>
-                  <div>
-                    <div className="text-body-lg text-on-surface">{meal.name}</div>
-                    <div className="text-label-lg text-on-surface-variant flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {meal.time}
-                      {meal.notes && ` - ${meal.notes}`}
-                    </div>
-                  </div>
-                </div>
-                <GIIndicator level={meal.gi_level} />
-              </div>
-            ))}
+    <div className="flex items-center justify-between p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant">
+      <div className="flex items-center gap-3">
+        <Icon name="restaurant" className="w-5 h-5 text-on-surface-variant" />
+        <div>
+          <div className="text-body-lg text-on-surface">{meal.name}</div>
+          <div className="text-label-lg text-on-surface-variant flex items-center gap-1">
+            {meal.time}
+            {meal.notes && ` - ${meal.notes}`}
           </div>
         </div>
-      ))}
+      </div>
+      <GIBadge level={meal.gi_level} />
+    </div>
+  );
+}
+
+// Featured Meal Plan Hero - rounded-3xl
+function MealPlanFeatured() {
+  return (
+    <div className="relative rounded-3xl bg-gradient-to-br from-primary-container to-secondary-container p-6 overflow-hidden">
+      <div className="absolute right-0 top-0 w-32 h-32 opacity-10">
+        <Icon name="set_meal" className="w-full h-full" />
+      </div>
+      <div className="relative z-10">
+        <h2 className="text-headline-md text-on-primary-container mb-2">
+          Nổi bật: Thực đơn Low GI
+        </h2>
+        <p className="text-body-md text-on-primary-container/80 mb-4">
+          Trong 7 ngày
+        </p>
+        <Button variant="primary" size="lg" className="shadow-lg active:scale-95">
+          Bắt đầu ngay
+        </Button>
+      </div>
     </div>
   );
 }
@@ -262,7 +154,6 @@ function MealHistoryList({ meals }: { meals: MealLog[] }) {
 // Main Page Component
 export default function BuaAnPage() {
   const [meals, setMeals] = useState<MealLog[]>([]);
-  const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -271,25 +162,6 @@ export default function BuaAnPage() {
       setLoading(false);
     }, 300);
   }, []);
-
-  const handleSubmit = (data: {
-    name: string;
-    gi_level: string;
-    time: string;
-    notes?: string;
-  }) => {
-    const newMeal: MealLog = {
-      id: Date.now().toString(),
-      name: data.name,
-      gi_level: data.gi_level as "low" | "medium" | "high",
-      time: data.time,
-      notes: data.notes,
-      created_at: new Date().toISOString(),
-    };
-
-    setMeals((prev) => [newMeal, ...prev]);
-    setShowForm(false);
-  };
 
   // Calculate today's stats
   const todayMeals = meals.filter((m) => {
@@ -304,27 +176,30 @@ export default function BuaAnPage() {
   };
 
   return (
-    <Page title="Bữa ăn">
-      <div className="space-y-4 p-6">
-        {/* Today's Summary */}
-        <Card variant="elevated" className="w-full">
+    <Page title="Dinh dưỡng">
+      <div className="p-6 space-y-4">
+        {/* Featured Meal Plan Hero */}
+        <MealPlanFeatured />
+
+        {/* Today's GI Summary */}
+        <Card variant="elevated" className="w-full rounded-2xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <UtensilsCrossed className="w-5 h-5 text-primary" />
+              <Icon name="calendar_today" className="w-5 h-5 text-primary" />
               Hôm nay
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="p-3 rounded-lg bg-primary/10">
+              <div className="p-3 rounded-xl bg-primary/10">
                 <div className="text-headline-md text-primary">{giCounts.low}</div>
                 <div className="text-label-lg text-on-surface-variant">GI Thấp</div>
               </div>
-              <div className="p-3 rounded-lg bg-amber-100">
-                <div className="text-headline-md text-amber-700">{giCounts.medium}</div>
+              <div className="p-3 rounded-xl bg-warning/10">
+                <div className="text-headline-md text-warning">{giCounts.medium}</div>
                 <div className="text-label-lg text-on-surface-variant">GI TB</div>
               </div>
-              <div className="p-3 rounded-lg bg-error/10">
+              <div className="p-3 rounded-xl bg-error/10">
                 <div className="text-headline-md text-error">{giCounts.high}</div>
                 <div className="text-label-lg text-on-surface-variant">GI Cao</div>
               </div>
@@ -333,39 +208,17 @@ export default function BuaAnPage() {
         </Card>
 
         {/* GI Legend */}
-        <Card variant="default" className="w-full">
-          <CardContent className="pt-4">
-            <div className="grid grid-cols-3 gap-2">
-              <GIIndicator level="low" />
-              <GIIndicator level="medium" />
-              <GIIndicator level="high" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Add Form */}
-        {showForm ? (
-          <MealLogForm
-            onSubmit={handleSubmit}
-            onCancel={() => setShowForm(false)}
-          />
-        ) : (
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={() => setShowForm(true)}
-            className="w-full"
-          >
-            <Plus className="w-5 h-5" />
-            Thêm bữa ăn
-          </Button>
-        )}
+        <GILegend />
 
         {/* History */}
         <div>
           <h2 className="text-headline-md text-on-surface mb-3">Lịch sử</h2>
           {!loading && meals.length > 0 ? (
-            <MealHistoryList meals={meals.slice(0, 15)} />
+            <div className="space-y-2">
+              {meals.slice(0, 10).map((meal) => (
+                <MealHistoryItem key={meal.id} meal={meal} />
+              ))}
+            </div>
           ) : loading ? (
             <div className="text-center py-8 text-on-surface-variant">Đang tải...</div>
           ) : (

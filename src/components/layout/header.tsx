@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { ChevronLeft } from "lucide-react";
+import { Icon } from "@/components/ui/icon";
 
 interface HeaderProps {
   title: string;
@@ -35,7 +35,7 @@ export const Header = ({ title, backHref, onBack, right }: HeaderProps) => {
             )}
             aria-label="Go back"
           >
-            <ChevronLeft className="w-6 h-6 text-on-surface" />
+            <Icon name="chevron_left" className="w-6 h-6 text-on-surface" />
           </Link>
         )}
         <h1 className="text-headline-md text-on-surface truncate">

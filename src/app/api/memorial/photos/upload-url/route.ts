@@ -49,8 +49,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(errorResponse("Không thể tạo link upload"), { status: 500 });
   }
 
+  // Get public URL for the bucket using env variable
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/memorial-photos/${fileName}`;
+
   return NextResponse.json(successResponse({
     uploadUrl: data.signedUrl,
-    fileUrl: fileName,
+    fileUrl: publicUrl,
   }));
 }

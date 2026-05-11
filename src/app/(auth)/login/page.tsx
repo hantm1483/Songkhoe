@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
-import { Eye, EyeOff } from "lucide-react";
+import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -100,11 +100,7 @@ export default function LoginPage() {
               className="absolute right-3 top-9 text-on-surface-variant hover:text-primary transition-colors"
               tabIndex={-1}
             >
-              {showPassword ? (
-                <EyeOff className="w-5 h-5" />
-              ) : (
-                <Eye className="w-5 h-5" />
-              )}
+              <Icon name={showPassword ? "visibility_off" : "visibility"} className="w-5 h-5" />
             </button>
           </div>
 

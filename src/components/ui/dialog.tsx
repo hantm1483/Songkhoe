@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { Icon } from "@/components/ui/icon";
 
 export interface DialogProps {
   open: boolean;
@@ -75,7 +75,7 @@ export const DialogCloseButton = ({
     className="min-h-touch-target min-w-touch-target flex items-center justify-center rounded-full hover:bg-surface-container transition-colors"
     aria-label={ariaLabel}
   >
-    <X className="w-5 h-5 text-on-surface-variant" />
+    <Icon name="close" className="w-5 h-5 text-on-surface-variant" />
   </button>
 );
 

@@ -6,19 +6,9 @@ import { Page } from "@/components/layout/page";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Activity,
-  Pill,
-  Utensils,
-  Plus,
-  Bell,
-  ChevronRight,
-  Droplets,
-  Sun,
-  Moon,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Icon } from "@/components/ui/icon";
 import { glucoseThresholds } from "@/lib/design-system";
+import { cn } from "@/lib/utils";
 
 // Types
 interface GlucoseReading {
@@ -28,19 +18,13 @@ interface GlucoseReading {
   created_at: string;
 }
 
-interface Medication {
+interface Article {
   id: string;
-  name: string;
-  dosage: string;
-  schedule_time: "morning" | "evening";
-  taken: boolean;
-}
-
-interface MealLog {
-  id: string;
-  name: string;
-  gi_level: "low" | "medium" | "high";
-  time: string;
+  title: string;
+  excerpt: string;
+  category: string;
+  image_url?: string;
+  read_time_minutes: number;
 }
 
 interface HealthTip {
@@ -48,57 +32,39 @@ interface HealthTip {
   tip: string;
 }
 
-// Health tip rules (rule-based personalization)
-const glucoseTips: HealthTip[] = [
-  {
-    condition: (g, t, d) => t === "fasting" && g > 7.0 && d >= 3,
-    tip: "Đường huyết lúc đói của bạn đã cao trong 3 ngày liên tiếp. Hãy chú ý đến chế độ ăn và tham khảo ý kiến bác sĩ.",
-  },
-  {
-    condition: (g, t, d) => t === "after_meal" && g > 10.0,
-    tip: "Đường huyết sau ăn của bạn cao hơn mức khuyến nghị. Cố gắng đi bộ sau bữa ăn để giảm đường huyết.",
-  },
-  {
-    condition: (g, t, d) => g < 4.0 && t === "fasting",
-    tip: "Đường huyết lúc đói của bạn đang ở mức thấp. Hãy ăn nhẹ trước khi lái xe hoặc làm việc cần tập trung.",
-  },
-  {
-    condition: (g, t, d) => t === "bedtime" && g > 8.0,
-    tip: "Đường huyết trước khi ngủ cao. Tránh ăn vặt sau 9 giờ tối để có giấc ngủ tốt hơn.",
-  },
-  {
-    condition: (g, t, d) => g > glucoseThresholds.high,
-    tip: "Đường huyết của bạn đang cao. Uống nhiều nước và đi bộ nhẹ nhàng sau bữa ăn.",
-  },
+// Categories
+const CATEGORIES = [
+  { id: "co-ban", label: "Cơ bản", icon: "auto_stories", description: "Kiến thức nền tảng" },
+  { id: "dinh-duong", label: "Dinh dưỡng", icon: "restaurant", description: "Chế độ ăn uống" },
+  { id: "loi-song", label: "Lối sống", icon: "directions_walk", description: "Vận động & sinh hoạt" },
+  { id: "tin-y-khoa", label: "Tin y khoa", icon: "medical_information", description: "Tin tức mới" },
 ];
 
-const defaultTips = [
-  "Nhớ kiểm tra đường huyết mỗi ngày vào cùng một giờ để theo dõi sức khỏe tốt hơn.",
-  "Uống đủ nước mỗi ngày giúp cơ thể loại bỏ độc tố và duy trì cân bằng đường huyết.",
-  "Đi bộ 30 phút mỗi ngày giúp cải thiện độ nhạy insulin và sức khỏe tim mạch.",
-  "Chia nhỏ bữa ăn trong ngày giúp giữ đường huyết ổn định hơn.",
-  "Ngủ đủ 7-8 tiếng mỗi đêm giúp hormone điều hòa đường huyết hoạt động tốt hơn.",
-];
-
-// Mock data functions
+// Mock data
 function getTodayGlucoseReadings(): GlucoseReading[] {
   return [
     { id: "1", value: 5.8, timing: "fasting", created_at: new Date().toISOString() },
   ];
 }
 
-function getTodayMedications(): Medication[] {
+function getArticles(): Article[] {
   return [
-    { id: "1", name: "Metformin", dosage: "500mg", schedule_time: "morning", taken: false },
-    { id: "2", name: "Gliclazide", dosage: "80mg", schedule_time: "morning", taken: false },
-    { id: "3", name: "Metformin", dosage: "500mg", schedule_time: "evening", taken: false },
-  ];
-}
-
-function getTodayMeals(): MealLog[] {
-  return [
-    { id: "1", name: "Bữa sáng", gi_level: "medium", time: "07:00" },
-    { id: "2", name: "Bữa trưa", gi_level: "low", time: "12:00" },
+    {
+      id: "1",
+      title: "Chế độ ăn uống cho người tiểu đường type 2",
+      excerpt: "Tìm hiểu nguyên tắc dinh dưỡng đúng cách để kiểm soát đường huyết hiệu quả.",
+      category: "dinh-duong",
+      image_url: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600",
+      read_time_minutes: 5,
+    },
+    {
+      id: "2",
+      title: "Tập thể dục an toàn cho người tiểu đường",
+      excerpt: "Hướng dẫn các bài tập phù hợp và lưu ý khi vận động.",
+      category: "loi-song",
+      image_url: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600",
+      read_time_minutes: 4,
+    },
   ];
 }
 
@@ -108,17 +74,117 @@ function getGlucoseStatus(value: number): "normal" | "high" | "low" {
   return "normal";
 }
 
-function getHealthTip(glucoseLogs: GlucoseReading[]): string {
-  // Check recent glucose readings against rules
-  for (const tip of glucoseTips) {
-    for (const log of glucoseLogs) {
-      if (tip.condition(log.value, log.timing, 1)) {
-        return tip.tip;
-      }
-    }
-  }
-  // Return random default tip if no rule matches
-  return defaultTips[Math.floor(Math.random() * defaultTips.length)];
+// Hero Section
+function HeroSection() {
+  return (
+    <div className="relative rounded-3xl bg-gradient-to-br from-primary/5 to-secondary/5 p-6 overflow-hidden">
+      <div className="absolute right-0 top-0 w-32 h-32 opacity-10">
+        <Icon name="monitor_heart" className="w-full h-full" />
+      </div>
+      <div className="relative z-10">
+        <h2 className="text-headline-md text-on-surface mb-2">
+          Cẩm nang quản lý tiểu đường
+        </h2>
+        <p className="text-body-md text-on-surface-variant mb-4">
+          Theo dõi sức khỏe mỗi ngày
+        </p>
+        <div className="relative">
+          <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant" />
+          <input
+            type="text"
+            placeholder="Tìm kiếm..."
+            className="w-full min-h-touch-target pl-10 pr-4 py-3 rounded-2xl bg-surface-container-lowest border-2 border-outline-variant text-body-lg text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Category Card
+function CategoryCard({
+  category,
+  onClick,
+}: {
+  category: typeof CATEGORIES[0];
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant hover:bg-secondary-container transition-colors duration-200"
+    >
+      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+        <Icon name={category.icon} className="w-6 h-6 text-primary" />
+      </div>
+      <span className="text-label-lg text-on-surface font-medium">{category.label}</span>
+    </button>
+  );
+}
+
+// Article Featured Card
+function ArticleFeaturedCard({ article }: { article: Article }) {
+  return (
+    <Link href={`/kien-thuc`} className="block">
+      <div className="rounded-3xl overflow-hidden bg-surface-container-lowest border border-outline-variant">
+        <div className="aspect-video relative">
+          {article.image_url && (
+            <img
+              src={article.image_url}
+              alt={article.title}
+              className="w-full h-full object-cover"
+            />
+          )}
+          <div className="absolute top-3 left-3">
+            <span className="px-3 py-1 rounded-full text-label-lg font-medium bg-secondary-container text-on-secondary-container">
+              {article.category === "dinh-duong" ? "Dinh dưỡng" : "Lối sống"}
+            </span>
+          </div>
+        </div>
+        <div className="p-4">
+          <h3 className="text-body-lg font-semibold text-on-surface mb-2 line-clamp-2">
+            {article.title}
+          </h3>
+          <p className="text-body-md text-on-surface-variant line-clamp-2 mb-3">
+            {article.excerpt}
+          </p>
+          <div className="flex items-center justify-between">
+            <span className="text-label-lg text-on-surface-variant">
+              {article.read_time_minutes} phút đọc
+            </span>
+            <span className="text-label-lg text-primary font-medium">Đọc tiếp →</span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// Article Small Card
+function ArticleSmallCard({ article }: { article: Article }) {
+  return (
+    <Link href={`/kien-thuc`} className="block">
+      <div className="flex gap-3 p-3 rounded-2xl bg-surface-container-lowest border border-outline-variant">
+        <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
+          {article.image_url && (
+            <img
+              src={article.image_url}
+              alt={article.title}
+              className="w-full h-full object-cover"
+            />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-body-md font-semibold text-on-surface line-clamp-2">
+            {article.title}
+          </h3>
+          <span className="text-label-lg text-on-surface-variant">
+            {article.read_time_minutes} phút
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
 }
 
 // Glucose Summary Card
@@ -126,23 +192,17 @@ function GlucoseSummaryCard({ readings }: { readings: GlucoseReading[] }) {
   const latestReading = readings[0];
   const status = latestReading ? getGlucoseStatus(latestReading.value) : "normal";
 
-  const statusColors = {
-    normal: "bg-primary text-on-primary",
-    high: "bg-warningHigh text-white",
-    low: "bg-warningLow text-amber-900",
-  };
-
   const statusLabels = {
-    normal: "Bình thường",
+    normal: "Ổn định",
     high: "Cao",
     low: "Thấp",
   };
 
   return (
-    <Card variant="elevated" className="w-full">
+    <Card variant="elevated" className="w-full rounded-3xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Droplets className="w-5 h-5 text-primary" />
+          <Icon name="water_drop" className="w-5 h-5 text-primary" filled />
           Đường huyết hôm nay
         </CardTitle>
       </CardHeader>
@@ -155,9 +215,13 @@ function GlucoseSummaryCard({ readings }: { readings: GlucoseReading[] }) {
               </span>
               <span className="text-body-md text-on-surface-variant">mmol/L</span>
             </div>
-            <Badge variant={status === "normal" ? "success" : status === "high" ? "error" : "warning"}>
+            <span className={cn(
+              "px-3 py-1 rounded-full text-label-lg font-medium",
+              status === "normal" ? "bg-primary text-on-primary" :
+              status === "high" ? "bg-error text-white" : "bg-warning text-amber-900"
+            )}>
               {statusLabels[status]}
-            </Badge>
+            </span>
           </div>
         ) : (
           <div className="text-body-lg text-on-surface-variant">
@@ -180,218 +244,25 @@ function GlucoseSummaryCard({ readings }: { readings: GlucoseReading[] }) {
   );
 }
 
-// Medication Reminder List
-function MedicationReminderList({
-  medications,
-  onToggle,
-}: {
-  medications: Medication[];
-  onToggle: (id: string) => void;
-}) {
-  const morningMeds = medications.filter((m) => m.schedule_time === "morning");
-  const eveningMeds = medications.filter((m) => m.schedule_time === "evening");
-
-  return (
-    <Card variant="elevated" className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Pill className="w-5 h-5 text-primary" />
-          Nhắc nhở uống thuốc
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Sun className="w-4 h-4 text-amber-500" />
-              <span className="text-label-lg font-semibold text-on-surface">Buổi sáng</span>
-            </div>
-            <div className="space-y-2">
-              {morningMeds.map((med) => (
-                <button
-                  key={med.id}
-                  onClick={() => onToggle(med.id)}
-                  className={cn(
-                    "w-full flex items-center justify-between p-3 rounded-lg min-h-touch-target",
-                    "bg-surface-container-low transition-colors duration-200",
-                    "hover:bg-surface-container"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "w-6 h-6 rounded-full border-2 flex items-center justify-center",
-                        med.taken
-                          ? "bg-primary border-primary"
-                          : "border-outline"
-                      )}
-                    >
-                      {med.taken && (
-                        <svg
-                          className="w-4 h-4 text-on-primary"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={3}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="text-left">
-                      <div className="text-body-lg text-on-surface">{med.name}</div>
-                      <div className="text-label-lg text-on-surface-variant">
-                        {med.dosage}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Moon className="w-4 h-4 text-indigo-500" />
-              <span className="text-label-lg font-semibold text-on-surface">Buổi tối</span>
-            </div>
-            <div className="space-y-2">
-              {eveningMeds.map((med) => (
-                <button
-                  key={med.id}
-                  onClick={() => onToggle(med.id)}
-                  className={cn(
-                    "w-full flex items-center justify-between p-3 rounded-lg min-h-touch-target",
-                    "bg-surface-container-low transition-colors duration-200",
-                    "hover:bg-surface-container"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "w-6 h-6 rounded-full border-2 flex items-center justify-center",
-                        med.taken
-                          ? "bg-primary border-primary"
-                          : "border-outline"
-                      )}
-                    >
-                      {med.taken && (
-                        <svg
-                          className="w-4 h-4 text-on-primary"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={3}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="text-left">
-                      <div className="text-body-lg text-on-surface">{med.name}</div>
-                      <div className="text-label-lg text-on-surface-variant">
-                        {med.dosage}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Meal Summary Card
-function MealSummaryCard({ meals }: { meals: MealLog[] }) {
-  return (
-    <Card variant="elevated" className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Utensils className="w-5 h-5 text-primary" />
-          Bữa ăn hôm nay
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {meals.map((meal) => (
-            <div
-              key={meal.id}
-              className="flex items-center justify-between py-2 border-b border-outline-variant last:border-0"
-            >
-              <div>
-                <div className="text-body-lg text-on-surface">{meal.name}</div>
-                <div className="text-label-lg text-on-surface-variant">{meal.time}</div>
-              </div>
-              <Badge
-                variant={
-                  meal.gi_level === "low"
-                    ? "success"
-                    : meal.gi_level === "medium"
-                    ? "warning"
-                    : "error"
-                }
-              >
-                {meal.gi_level === "low"
-                  ? "GI Thấp"
-                  : meal.gi_level === "medium"
-                  ? "GI TB"
-                  : "GI Cao"}
-              </Badge>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Health Tip Card
-function HealthTipCard({ tip }: { tip: string }) {
-  return (
-    <Card variant="elevated" className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Activity className="w-5 h-5 text-primary" />
-          Lời khuyên sức khỏe
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-body-lg text-on-surface leading-relaxed">{tip}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
 // Quick Actions
 function QuickActions() {
   return (
     <div className="grid grid-cols-3 gap-3">
       <Link href="/nhatky">
-        <Button variant="primary" size="lg" className="w-full h-full flex flex-col gap-1">
-          <Droplets className="w-6 h-6" />
+        <Button variant="primary" size="lg" className="w-full h-full flex flex-col gap-1 shadow-lg active:scale-95">
+          <Icon name="water_drop" className="w-6 h-6" filled />
           <span className="text-label-lg">Đo đường</span>
         </Button>
       </Link>
       <Link href="/bua-an">
-        <Button variant="secondary" size="lg" className="w-full h-full flex flex-col gap-1">
-          <Utensils className="w-6 h-6" />
-          <span className="text-label-lg"> Ăn</span>
+        <Button variant="secondary" size="lg" className="w-full h-full flex flex-col gap-1 shadow-lg active:scale-95">
+          <Icon name="restaurant" className="w-6 h-6" />
+          <span className="text-label-lg">Ăn</span>
         </Button>
       </Link>
       <Link href="/thuoc">
-        <Button variant="ghost" size="lg" className="w-full h-full flex flex-col gap-1 border border-outline">
-          <Pill className="w-6 h-6" />
+        <Button variant="ghost" size="lg" className="w-full h-full flex flex-col gap-1 border border-outline shadow-lg active:scale-95">
+          <Icon name="medication" className="w-6 h-6" />
           <span className="text-label-lg">Thuốc</span>
         </Button>
       </Link>
@@ -399,99 +270,52 @@ function QuickActions() {
   );
 }
 
-// Notification Permission Prompt
-function NotificationPermissionPrompt() {
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    // Check if notifications were previously enabled
-    const enabled = localStorage.getItem("notifications_enabled");
-    if (!enabled) {
-      setShowPrompt(true);
-    } else {
-      setDismissed(true);
-    }
-  }, []);
-
-  const handleEnable = async () => {
-    if (!("Notification" in window)) {
-      alert("Trình duyệt này không hỗ trợ thông báo");
-      return;
-    }
-
-    const permission = await Notification.requestPermission();
-    if (permission === "granted") {
-      localStorage.setItem("notifications_enabled", "true");
-      setDismissed(true);
-    }
-  };
-
-  const handleDismiss = () => {
-    setDismissed(true);
-  };
-
-  if (dismissed || !showPrompt) return null;
-
-  return (
-    <Card variant="elevated" className="w-full border-2 border-primary/30">
-      <CardContent className="pt-4">
-        <div className="flex items-start gap-3">
-          <div className="bg-primary/10 p-2 rounded-full">
-            <Bell className="w-6 h-6 text-primary" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-body-lg font-semibold text-on-surface mb-1">
-              Bật thông báo nhắc nhở
-            </h3>
-            <p className="text-body-md text-on-surface-variant mb-3">
-              Nhận thông báo uống thuốc và kiểm tra đường huyết đúng giờ
-            </p>
-            <div className="flex gap-2">
-              <Button variant="primary" onClick={handleEnable}>
-                Bật ngay
-              </Button>
-              <Button variant="ghost" onClick={handleDismiss}>
-                Để sau
-              </Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 // Main Page Component
 export default function TrangchuPage() {
   const [glucoseReadings, setGlucoseReadings] = useState<GlucoseReading[]>([]);
-  const [medications, setMedications] = useState<Medication[]>([]);
-  const [meals, setMeals] = useState<MealLog[]>([]);
-  const [healthTip, setHealthTip] = useState<string>("");
+  const [articles, setArticles] = useState<Article[]>([]);
 
   useEffect(() => {
-    // Load mock data
     setGlucoseReadings(getTodayGlucoseReadings());
-    setMedications(getTodayMedications());
-    setMeals(getTodayMeals());
-    setHealthTip(getHealthTip(getTodayGlucoseReadings()));
+    setArticles(getArticles());
   }, []);
-
-  const handleMedicationToggle = (id: string) => {
-    setMedications((prev) =>
-      prev.map((med) => (med.id === id ? { ...med, taken: !med.taken } : med))
-    );
-  };
 
   return (
     <Page title="Trang chủ">
       <div className="p-6 space-y-4">
+        {/* Hero Section */}
+        <HeroSection />
+
+        {/* Category Grid */}
+        <div>
+          <h2 className="text-headline-md text-on-surface mb-3">Danh mục</h2>
+          <div className="grid grid-cols-4 gap-2">
+            {CATEGORIES.map((cat) => (
+              <CategoryCard
+                key={cat.id}
+                category={cat}
+                onClick={() => {}}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Glucose Summary */}
         <GlucoseSummaryCard readings={glucoseReadings} />
-        <MedicationReminderList medications={medications} onToggle={handleMedicationToggle} />
-        <MealSummaryCard meals={meals} />
-        <HealthTipCard tip={healthTip} />
-        <NotificationPermissionPrompt />
+
+        {/* Quick Actions */}
         <QuickActions />
+
+        {/* Latest Articles */}
+        <div>
+          <h2 className="text-headline-md text-on-surface mb-3">Bài viết mới</h2>
+          {articles.length > 0 && (
+            <div className="space-y-3">
+              <ArticleFeaturedCard article={articles[0]} />
+              {articles[1] && <ArticleSmallCard article={articles[1]} />}
+            </div>
+          )}
+        </div>
       </div>
     </Page>
   );

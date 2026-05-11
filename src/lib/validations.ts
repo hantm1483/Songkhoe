@@ -39,8 +39,8 @@ export function validateGlucoseLogInput(data: unknown): {
     return { success: false, error: "Giá trị đường huyết là bắt buộc" };
   }
 
-  if (input.value < 20 || input.value > 600) {
-    return { success: false, error: "Giá trị đường huyết không hợp lệ (20-600 mg/dL)" };
+  if (input.value < 2 || input.value > 35) {
+    return { success: false, error: "Giá trị đường huyết không hợp lệ (2-35 mmol/L)" };
   }
 
   if (input.timing !== undefined && input.timing !== null) {

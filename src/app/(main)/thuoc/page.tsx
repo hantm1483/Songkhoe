@@ -4,9 +4,7 @@ import { useState, useEffect } from "react";
 import { Page } from "@/components/layout/page";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Pill, Bell, Sun, Moon, Plus, Utensils, Trash2 } from "lucide-react";
+import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 
 // Types
@@ -15,152 +13,132 @@ interface Medication {
   name: string;
   dosage: string;
   schedule_time: "morning" | "evening";
-  notification_enabled: boolean;
   taken: boolean;
 }
 
-interface MealLog {
-  id: string;
-  name: string;
-  gi_level: "low" | "medium" | "high";
+interface ScheduleItem {
   time: string;
-  notes?: string;
+  label: string;
+  completed: boolean;
+}
+
+interface MealSuggestion {
+  name: string;
+  gi: "low" | "medium" | "high";
+  icon: string;
 }
 
 // Generate mock medications
 function generateMockMedications(): Medication[] {
   return [
-    {
-      id: "1",
-      name: "Metformin",
-      dosage: "500mg",
-      schedule_time: "morning",
-      notification_enabled: true,
-      taken: false,
-    },
-    {
-      id: "2",
-      name: "Gliclazide",
-      dosage: "80mg",
-      schedule_time: "morning",
-      notification_enabled: true,
-      taken: false,
-    },
-    {
-      id: "3",
-      name: "Metformin",
-      dosage: "500mg",
-      schedule_time: "evening",
-      notification_enabled: false,
-      taken: false,
-    },
-    {
-      id: "4",
-      name: "Atorvastatin",
-      dosage: "20mg",
-      schedule_time: "evening",
-      notification_enabled: true,
-      taken: false,
-    },
+    { id: "1", name: "Metformin", dosage: "500mg", schedule_time: "morning", taken: false },
+    { id: "2", name: "Gliclazide", dosage: "80mg", schedule_time: "morning", taken: false },
+    { id: "3", name: "Metformin", dosage: "500mg", schedule_time: "evening", taken: false },
   ];
 }
 
-// Generate mock meals
-function generateMockMeals(): MealLog[] {
+// Schedule timeline data
+const SCHEDULE_ITEMS: ScheduleItem[] = [
+  { time: "06:00", label: "Thức dậy & Kiểm tra", completed: true },
+  { time: "07:00", label: "Uống thuốc sáng", completed: true },
+  { time: "11:30", label: "Bữa trưa dinh dưỡng", completed: false },
+  { time: "19:00", label: "Uống thuốc tối", completed: false },
+  { time: "22:00", label: "Ngủ nghỉ", completed: false },
+];
+
+// Meal suggestions (Low GI)
+const MEAL_SUGGESTIONS: MealSuggestion[] = [
+  { name: "Salad Quinoa", gi: "low", icon: "eco" },
+  { name: "Yến mạch", gi: "low", icon: "breakfast_dining" },
+  { name: "Gạo lứt", gi: "medium", icon: "rice_bowl" },
+];
+
+// Welcome Card with gradient
+function WelcomeCard() {
   const today = new Date();
-  return [
-    {
-      id: "1",
-      name: "Bữa sáng",
-      gi_level: "medium",
-      time: "07:00",
-      notes: "Phở bò",
-    },
-    {
-      id: "2",
-      name: "Bữa trưa",
-      gi_level: "low",
-      time: "12:00",
-      notes: "Cơm + cá + rau",
-    },
-    {
-      id: "3",
-      name: "Bữa xế",
-      gi_level: "medium",
-      time: "15:00",
-      notes: "Trái cây",
-    },
-    {
-      id: "4",
-      name: "Bữa tối",
-      gi_level: "low",
-      time: "19:00",
-      notes: "Xúp + cơm + thịt",
-    },
-  ];
-}
+  const dateStr = today.toLocaleDateString("vi-VN", { day: "numeric", month: "numeric" });
 
-// Medication Tabs
-function MedicationTabs({
-  activeTab,
-  onChange,
-}: {
-  activeTab: "morning" | "evening";
-  onChange: (tab: "morning" | "evening") => void;
-}) {
+  const completedCount = SCHEDULE_ITEMS.filter(s => s.completed).length;
+  const completionPercent = Math.round((completedCount / SCHEDULE_ITEMS.length) * 100);
+
   return (
-    <div className="flex gap-2 mb-4">
-      <button
-        onClick={() => onChange("morning")}
-        className={cn(
-          "flex-1 flex items-center justify-center gap-2 py-3 rounded-lg min-h-touch-target",
-          "transition-colors duration-200",
-          activeTab === "morning"
-            ? "bg-primary text-on-primary"
-            : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
-        )}
-      >
-        <Sun className="w-5 h-5" />
-        Buổi sáng
-      </button>
-      <button
-        onClick={() => onChange("evening")}
-        className={cn(
-          "flex-1 flex items-center justify-center gap-2 py-3 rounded-lg min-h-touch-target",
-          "transition-colors duration-200",
-          activeTab === "evening"
-            ? "bg-primary text-on-primary"
-            : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
-        )}
-      >
-        <Moon className="w-5 h-5" />
-        Buổi tối
-      </button>
+    <div className="relative rounded-3xl bg-gradient-to-br from-primary-container to-secondary-container p-6 overflow-hidden">
+      <div className="absolute right-0 bottom-0 w-40 h-40 opacity-20">
+        <Icon name="set_meal" className="w-full h-full" />
+      </div>
+      <div className="relative z-10">
+        <h2 className="text-headline-md text-on-primary-container mb-1">
+          Chào buổi sáng!
+        </h2>
+        <p className="text-body-md text-on-primary-container/80 mb-4">
+          Kế hoạch hôm nay
+        </p>
+        <div className="flex items-center gap-4 text-body-md text-on-primary-container">
+          <span className="flex items-center gap-1">
+            <Icon name="calendar_today" className="w-5 h-5" />
+            {dateStr}
+          </span>
+          <span className="flex items-center gap-1">
+            <Icon name="check_circle" className="w-5 h-5" />
+            {completionPercent}% Hoàn tất
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
 
-// Medication Item
+// Schedule Timeline with border-l-2
+function ScheduleTimeline() {
+  return (
+    <Card variant="elevated" className="w-full rounded-2xl">
+      <CardContent className="pt-4">
+        <h3 className="text-body-lg font-semibold text-on-surface mb-4">Lịch trình hôm nay</h3>
+        <div className="space-y-0">
+          {SCHEDULE_ITEMS.map((item, index) => (
+            <div
+              key={index}
+              className={cn(
+                "relative pl-6 pb-4 border-l-2 border-primary",
+                index === SCHEDULE_ITEMS.length - 1 && "border-l-2 border-transparent"
+              )}
+            >
+              <div className={cn(
+                "absolute left-0 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-primary bg-surface",
+                item.completed && "bg-primary"
+              )}>
+                {item.completed && (
+                  <Icon name="check" className="w-3 h-3 text-on-primary" />
+                )}
+              </div>
+              <span className="text-label-lg text-on-surface-variant">{item.time}</span>
+              <span className="text-body-lg text-on-surface ml-2">{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Medication Item - rounded-xl
 function MedicationItem({
   medication,
   onToggle,
-  onDelete,
 }: {
   medication: Medication;
   onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
 }) {
   return (
-    <div
+    <button
+      onClick={() => onToggle(medication.id)}
       className={cn(
-        "flex items-center justify-between p-3 rounded-lg",
-        "bg-surface-container-low"
+        "w-full flex items-center justify-between p-4 rounded-xl",
+        "bg-surface-container-lowest border border-outline-variant",
+        medication.taken && "bg-primary-container/30 border-primary"
       )}
     >
-      <button
-        onClick={() => onToggle(medication.id)}
-        className="flex items-center gap-3 flex-1"
-      >
+      <div className="flex items-center gap-3">
         <div
           className={cn(
             "w-6 h-6 rounded-full border-2 flex items-center justify-center",
@@ -170,197 +148,53 @@ function MedicationItem({
           )}
         >
           {medication.taken && (
-            <svg
-              className="w-4 h-4 text-on-primary"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={3}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
+            <Icon name="check" className="w-4 h-4 text-on-primary" />
           )}
         </div>
         <div className="text-left">
-          <div
-            className={cn(
-              "text-body-lg",
-              medication.taken && "line-through text-on-surface-variant"
-            )}
-          >
+          <div className={cn(
+            "text-body-lg",
+            medication.taken && "line-through text-on-surface-variant"
+          )}>
             {medication.name}
           </div>
           <div className="text-label-lg text-on-surface-variant">
             {medication.dosage}
           </div>
         </div>
-      </button>
-      <button
-        onClick={() => onDelete(medication.id)}
-        className="p-2 hover:bg-error/10 rounded-lg"
-      >
-        <Trash2 className="w-5 h-5 text-on-surface-variant hover:text-error" />
-      </button>
-    </div>
-  );
-}
-
-// Notification Toggle
-function NotificationToggle({
-  enabled,
-  onChange,
-}: {
-  enabled: boolean;
-  onChange: (enabled: boolean) => void;
-}) {
-  return (
-    <button
-      onClick={() => onChange(!enabled)}
-      className={cn(
-        "w-12 h-6 rounded-full transition-colors duration-200",
-        enabled ? "bg-primary" : "bg-surface-container"
-      )}
-    >
-      <div
-        className={cn(
-          "w-5 h-5 rounded-full bg-white shadow transition-transform duration-200",
-          enabled ? "translate-x-6" : "translate-x-0.5"
-        )}
-      />
+      </div>
+      <span className="text-label-lg text-on-surface-variant">
+        {medication.schedule_time === "morning" ? "Sáng" : "Tối"}
+      </span>
     </button>
   );
 }
 
-// Meal Diary Section
-function MealDiarySection({
-  meals,
-  giLabel,
-}: {
-  meals: MealLog[];
-  giLabel: string;
-}) {
+// Meal Suggestion Card - rounded-2xl
+function MealSuggestionCard({ suggestion }: { suggestion: MealSuggestion }) {
   return (
-    <Card variant="elevated" className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Utensils className="w-5 h-5 text-primary" />
-          Nhật ký ăn uống - {giLabel}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {meals.map((meal) => {
-            const giVariant =
-              meal.gi_level === "low"
-                ? "success"
-                : meal.gi_level === "medium"
-                ? "warning"
-                : "error";
-
-            return (
-              <div
-                key={meal.id}
-                className="flex items-center justify-between py-2 border-b border-outline-variant last:border-0"
-              >
-                <div>
-                  <div className="text-body-lg text-on-surface">{meal.name}</div>
-                  <div className="text-label-lg text-on-surface-variant">
-                    {meal.time} {meal.notes && `- ${meal.notes}`}
-                  </div>
-                </div>
-                <Badge variant={giVariant}>
-                  GI {meal.gi_level === "low" ? "Thấp" : meal.gi_level === "medium" ? "TB" : "Cao"}
-                </Badge>
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Add Medication Form
-function MedicationForm({
-  onSubmit,
-  onCancel,
-}: {
-  onSubmit: (data: { name: string; dosage: string; schedule_time: string }) => void;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [dosage, setDosage] = useState("");
-  const [scheduleTime, setScheduleTime] = useState<"morning" | "evening">("morning");
-
-  const handleSubmit = () => {
-    if (!name.trim() || !dosage.trim()) return;
-    onSubmit({ name: name.trim(), dosage: dosage.trim(), schedule_time: scheduleTime });
-  };
-
-  return (
-    <Card variant="elevated" className="w-full">
-      <CardHeader>
-        <CardTitle>Thêm thuốc mới</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Input
-          label="Tên thuốc"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="VD: Metformin"
-        />
-        <Input
-          label="Liều lượng"
-          value={dosage}
-          onChange={(e) => setDosage(e.target.value)}
-          placeholder="VD: 500mg"
-        />
-        <div>
-          <label className="text-label-lg text-on-surface-variant mb-2 block">
-            Thời điểm
-          </label>
-          <MedicationTabs
-            activeTab={scheduleTime}
-            onChange={setScheduleTime}
-          />
-        </div>
-        <div className="flex gap-3 pt-2">
-          <Button variant="primary" onClick={handleSubmit} className="flex-1">
-            <Plus className="w-5 h-5" />
-            Lưu
-          </Button>
-          <Button variant="ghost" onClick={onCancel}>
-            Huỷ
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant">
+      <Icon name={suggestion.icon} className="w-8 h-8 text-primary" />
+      <span className="text-body-md text-on-surface font-medium">{suggestion.name}</span>
+      <span className={cn(
+        "px-2 py-0.5 rounded-full text-label-lg",
+        suggestion.gi === "low" && "bg-primary/10 text-primary",
+        suggestion.gi === "medium" && "bg-warning/10 text-warning",
+        suggestion.gi === "high" && "bg-error/10 text-error"
+      )}>
+        GI {suggestion.gi === "low" ? "Thấp" : suggestion.gi === "medium" ? "TB" : "Cao"}
+      </span>
+    </div>
   );
 }
 
 // Main Page Component
 export default function ThuocPage() {
   const [medications, setMedications] = useState<Medication[]>([]);
-  const [meals, setMeals] = useState<MealLog[]>([]);
-  const [activeTab, setActiveTab] = useState<"morning" | "evening">("morning");
-  const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setTimeout(() => {
-      setMedications(generateMockMedications());
-      setMeals(generateMockMeals());
-      setLoading(false);
-    }, 300);
+    setMedications(generateMockMedications());
   }, []);
-
-  const filteredMedications = medications.filter(
-    (m) => m.schedule_time === activeTab
-  );
 
   const handleToggleTaken = (id: string) => {
     setMedications((prev) =>
@@ -368,129 +202,38 @@ export default function ThuocPage() {
     );
   };
 
-  const handleDeleteMedication = (id: string) => {
-    setMedications((prev) => prev.filter((m) => m.id !== id));
-  };
-
-  const handleNotificationToggle = (id: string, enabled: boolean) => {
-    setMedications((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, notification_enabled: enabled } : m))
-    );
-  };
-
-  const handleAddMedication = (
-    data: { name: string; dosage: string; schedule_time: string },
-    enableNotification: boolean = false
-  ) => {
-    const newMedication: Medication = {
-      id: Date.now().toString(),
-      name: data.name,
-      dosage: data.dosage,
-      schedule_time: data.schedule_time as "morning" | "evening",
-      notification_enabled: enableNotification,
-      taken: false,
-    };
-
-    setMedications((prev) => [...prev, newMedication]);
-    setShowForm(false);
-  };
-
-  const giLabel = activeTab === "morning" ? "Sáng" : "Tối";
-  const todayMeals = meals.filter((m) => {
-    const hour = parseInt(m.time.split(":")[0]);
-    return activeTab === "morning" ? hour < 12 : hour >= 12;
-  });
-
   return (
-    <Page title="Thuốc">
-      <div className="space-y-4 p-6">
-        {/* Medication Tabs */}
-        <MedicationTabs activeTab={activeTab} onChange={setActiveTab} />
+    <Page title="Chế độ chăm sóc">
+      <div className="p-6 space-y-4">
+        {/* Welcome Card */}
+        <WelcomeCard />
 
-        {/* Medication List */}
-        <Card variant="elevated" className="w-full">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Pill className="w-5 h-5 text-primary" />
-              Danh sách thuốc - {giLabel}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-center py-8 text-on-surface-variant">
-                Đang tải...
-              </div>
-            ) : filteredMedications.length > 0 ? (
-              <div className="space-y-2">
-                {filteredMedications.map((med) => (
-                  <MedicationItem
-                    key={med.id}
-                    medication={med}
-                    onToggle={handleToggleTaken}
-                    onDelete={handleDeleteMedication}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-on-surface-variant">
-                Chưa có thuốc trong khung giờ này
-              </div>
-            )}
+        {/* Schedule Timeline */}
+        <ScheduleTimeline />
 
-            {/* Notification settings for each medication */}
-            <div className="mt-4 pt-4 border-t border-outline-variant">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-on-surface-variant" />
-                  <span className="text-body-md text-on-surface">
-                    Nhắc nhở uống thuốc
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-2 mt-2">
-                {filteredMedications
-                  .filter((m) => m.notification_enabled)
-                  .map((med) => (
-                    <div
-                      key={med.id}
-                      className="flex items-center justify-between py-2"
-                    >
-                      <span className="text-body-md text-on-surface-variant">
-                        {med.name} ({med.dosage})
-                      </span>
-                      <NotificationToggle
-                        enabled={med.notification_enabled}
-                        onChange={(enabled) =>
-                          handleNotificationToggle(med.id, enabled)
-                        }
-                      />
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Medication Checklist */}
+        <div>
+          <h2 className="text-headline-md text-on-surface mb-3">Thuốc hôm nay</h2>
+          <div className="space-y-2">
+            {medications.map((med) => (
+              <MedicationItem
+                key={med.id}
+                medication={med}
+                onToggle={handleToggleTaken}
+              />
+            ))}
+          </div>
+        </div>
 
-        {/* Add Medication */}
-        {showForm ? (
-          <MedicationForm
-            onSubmit={handleAddMedication}
-            onCancel={() => setShowForm(false)}
-          />
-        ) : (
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={() => setShowForm(true)}
-            className="w-full"
-          >
-            <Plus className="w-5 h-5" />
-            Thêm thuốc
-          </Button>
-        )}
-
-        {/* Meal Diary */}
-        <MealDiarySection meals={todayMeals} giLabel={giLabel} />
+        {/* Meal Suggestions */}
+        <div>
+          <h2 className="text-headline-md text-on-surface mb-3">Gợi ý bữa ăn</h2>
+          <div className="grid grid-cols-3 gap-2">
+            {MEAL_SUGGESTIONS.map((meal, index) => (
+              <MealSuggestionCard key={index} suggestion={meal} />
+            ))}
+          </div>
+        </div>
       </div>
     </Page>
   );

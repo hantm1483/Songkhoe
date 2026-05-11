@@ -2,6 +2,11 @@
 
 // Colors
 export const colors = {
+  // GlucoCare Design System
+  primary: "#008B8B",
+  secondary: "#00A8A8",
+  accent: "#FF7F50",
+  "bg-warm": "#FDFCFB",
   // Surface
   surface: "#fef8f4",
   "surface-dim": "#ded9d5",
@@ -13,43 +18,21 @@ export const colors = {
   "surface-container-highest": "#e7e1dd",
   "on-surface": "#1d1b19",
   "on-surface-variant": "#3f4948",
-  "inverse-surface": "#32302d",
-  "inverse-on-surface": "#f5f0eb",
   outline: "#6f7979",
   "outline-variant": "#bec9c8",
-  "surface-tint": "#0d6969",
-  // Primary
-  primary: "#006262",
-  "on-primary": "#ffffff",
-  "primary-container": "#2a7b7b",
-  "on-primary-container": "#c7fffe",
-  "inverse-primary": "#87d3d3",
-  // Secondary
-  secondary: "#136299",
-  "on-secondary": "#ffffff",
-  "secondary-container": "#82c1fd",
-  "on-secondary-container": "#004e7e",
-  // Tertiary
-  tertiary: "#943b23",
-  "on-tertiary": "#ffffff",
-  "tertiary-container": "#b45238",
-  "on-tertiary-container": "#fff1ee",
+  // Status colors for glucose
+  success: "#008B8B",
+  warning: "#f59e0b",
+  warningLow: "#f59e0b",
+  warningHigh: "#ef4444",
+  normal: "#008B8B",
+  high: "#ef4444",
+  low: "#f59e0b",
   // Error
   error: "#ba1a1a",
   "on-error": "#ffffff",
   "error-container": "#ffdad6",
   "on-error-container": "#93000a",
-  // Background
-  background: "#fef8f4",
-  "on-background": "#1d1b19",
-  // Status colors for glucose
-  success: "#006262",
-  warning: "#f59e0b",
-  warningLow: "#f59e0b",
-  warningHigh: "#ef4444",
-  normal: "#006262",
-  high: "#ef4444",
-  low: "#f59e0b",
 } as const;
 
 // Typography scale (fontSize in px)

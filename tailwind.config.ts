@@ -9,6 +9,11 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // GlucoCare Design System
+        primary: "#008B8B",
+        secondary: "#00A8A8",
+        accent: "#FF7F50",
+        "bg-warm": "#FDFCFB",
         // Surface colors
         surface: "#fef8f4",
         "surface-dim": "#ded9d5",
@@ -20,39 +25,8 @@ const config: Config = {
         "surface-container-highest": "#e7e1dd",
         "on-surface": "#1d1b19",
         "on-surface-variant": "#3f4948",
-        "inverse-surface": "#32302d",
-        "inverse-on-surface": "#f5f0eb",
         outline: "#6f7979",
         "outline-variant": "#bec9c8",
-        "surface-tint": "#0d6969",
-        // Primary
-        primary: "#006262",
-        "on-primary": "#ffffff",
-        "primary-container": "#2a7b7b",
-        "on-primary-container": "#c7fffe",
-        "inverse-primary": "#87d3d3",
-        "primary-fixed": "#a3f0ef",
-        "primary-fixed-dim": "#87d3d3",
-        "on-primary-fixed": "#002020",
-        "on-primary-fixed-variant": "#004f50",
-        // Secondary
-        secondary: "#136299",
-        "on-secondary": "#ffffff",
-        "secondary-container": "#82c1fd",
-        "on-secondary-container": "#004e7e",
-        "secondary-fixed": "#cfe5ff",
-        "secondary-fixed-dim": "#98cbff",
-        "on-secondary-fixed": "#001d33",
-        "on-secondary-fixed-variant": "#004a77",
-        // Tertiary
-        tertiary: "#943b23",
-        "on-tertiary": "#ffffff",
-        "tertiary-container": "#b45238",
-        "on-tertiary-container": "#fff1ee",
-        "tertiary-fixed": "#ffdbd2",
-        "tertiary-fixed-dim": "#ffb4a1",
-        "on-tertiary-fixed": "#3c0800",
-        "on-tertiary-fixed-variant": "#7e2b14",
         // Error
         error: "#ba1a1a",
         "on-error": "#ffffff",
@@ -61,10 +35,10 @@ const config: Config = {
         // Background
         background: "#fef8f4",
         "on-background": "#1d1b19",
-        "surface-variant": "#e7e1dd",
       },
       fontFamily: {
-        beVietnamPro: ["var(--font-be-vietnam-pro)", "sans-serif"],
+        body: ["var(--font-bevietnam)", "sans-serif"],
+        headline: ["var(--font-bevietnam)", "sans-serif"],
       },
       fontSize: {
         "display-lg": ["40px", { lineHeight: "48px", fontWeight: "700" }],
@@ -87,10 +61,10 @@ const config: Config = {
       },
       borderRadius: {
         sm: "0.25rem",
-        DEFAULT: "0.5rem",
+        DEFAULT: "0.25rem",
         md: "0.75rem",
-        lg: "1rem",
-        xl: "1.5rem",
+        lg: "0.5rem",
+        xl: "0.75rem",
         full: "9999px",
       },
       boxShadow: {

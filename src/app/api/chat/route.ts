@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
   const { conversation_id, message, idempotency_key } = validation.data!;
 
-  // Check conversation ownership
+  // Check conversation ownership FIRST (before rate limit)
   const { data: conversation, error: convError } = await supabase
     .from("conversations")
     .select("id, user_id")
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(unauthorizedError(), { status: 401 });
   }
 
-  // Check rate limit (50 messages per hour)
+  // Check rate limit after ownership verification (50 messages per hour)
   const { allowed, resetAt } = await checkRateLimit(user.id, "aiChat");
   if (!allowed) {
     const retryAfter = Math.ceil((resetAt.getTime() - Date.now()) / 1000);

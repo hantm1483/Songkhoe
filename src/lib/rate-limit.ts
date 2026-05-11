@@ -1,6 +1,7 @@
 /**
  * Rate Limiting Utility
  * Uses rate_limits table for per-user rate limiting
+ * With in-memory fallback if RPC is unavailable
  */
 
 import { createClient } from "./supabase/server";
@@ -13,9 +14,13 @@ export interface RateLimitConfig {
 export const RATE_LIMIT_CONFIGS = {
   healthData: { limit: 100, windowMs: 60000 }, // 100 req/min
   aiChat: { limit: 50, windowMs: 3600000 }, // 50 req/hour
+  aiSummary: { limit: 10, windowMs: 3600000 }, // 10 summaries/hour
 } as const;
 
 export type RateLimitAction = keyof typeof RATE_LIMIT_CONFIGS;
+
+// In-memory fallback storage (per-process, reset on restart)
+const memoryFallback: Map<string, { count: number; resetAt: number }> = new Map();
 
 /**
  * Check if user has exceeded rate limit
@@ -37,12 +42,33 @@ export async function checkRateLimit(
   });
 
   if (error) {
-    // If RPC doesn't exist, fallback to simple check
-    console.warn("Rate limit RPC not available, using fallback:", error.message);
+    // If RPC doesn't exist, fallback to in-memory check
+    console.warn("Rate limit RPC not available, using in-memory fallback:", error.message);
+
+    const memKey = `${userId}:${action}`;
+    const now = Date.now();
+    const entry = memoryFallback.get(memKey);
+
+    if (!entry || now > entry.resetAt) {
+      // New window
+      const newResetAt = now + config.windowMs;
+      memoryFallback.set(memKey, { count: 1, resetAt: newResetAt });
+      return {
+        allowed: true,
+        remaining: config.limit - 1,
+        resetAt: new Date(newResetAt),
+      };
+    }
+
+    // Existing window, increment
+    entry.count += 1;
+    const remaining = Math.max(0, config.limit - entry.count);
+    const allowed = entry.count <= config.limit;
+
     return {
-      allowed: true,
-      remaining: config.limit,
-      resetAt: new Date(Date.now() + config.windowMs),
+      allowed,
+      remaining,
+      resetAt: new Date(entry.resetAt),
     };
   }
 

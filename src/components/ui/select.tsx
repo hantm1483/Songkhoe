@@ -1,6 +1,6 @@
 import { SelectHTMLAttributes, forwardRef, useId } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
+import { Icon } from "@/components/ui/icon";
 
 export interface SelectOption {
   value: string;
@@ -60,7 +60,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
               </option>
             ))}
           </select>
-          <ChevronDown
+          <Icon
+            name="expand_more"
             className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant pointer-events-none"
             aria-hidden="true"
           />

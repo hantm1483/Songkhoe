@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --font-be-vietnam-pro: "Be Vietnam Pro", sans-serif;
+  --font-inter: "Inter", sans-serif;
+  --font-manrope: "Manrope", sans-serif;
 }
 
 @layer base {
@@ -14,7 +15,7 @@
 
   body {
     @apply bg-surface text-on-surface;
-    font-family: var(--font-be-vietnam-pro);
+    font-family: var(--font-inter);
   }
 
   * {
@@ -32,10 +33,10 @@
   input,
   textarea,
   select {
-    @apply font-beVietnamPro;
+    @apply font-body;
   }
 
-  /* Scrollbar styling for warmth */
+  /* Scrollbar styling */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -46,31 +47,53 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-outline-variant rounded-full;
+    @apply bg-primary/40 rounded;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-outline;
+    @apply bg-primary;
+  }
+
+  /* Material Symbols Outlined font */
+  .material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+    font-size: 24px;
   }
 }
 
 @layer components {
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-sm rounded-2xl;
+  }
+
+  .primary-button {
+    @apply bg-primary hover:bg-secondary text-white px-6 py-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg active:scale-95;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-slate-500 hover:bg-primary/10 hover:text-primary cursor-pointer;
+  }
+
+  .nav-item-active {
+    @apply bg-primary text-white shadow-lg shadow-primary/30;
+  }
+
   .card {
-    @apply bg-surface-container-lowest rounded-lg p-4 shadow-soft-elevation;
+    @apply bg-surface-container-lowest rounded-xl p-4 shadow-soft-elevation;
   }
 
   .card-elevated {
-    @apply bg-surface-container-low rounded-lg p-4 shadow-soft-teal;
+    @apply bg-surface-container-lowest rounded-xl p-4 shadow-soft-teal;
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-beVietnamPro font-semibold
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-headline font-semibold
            min-h-touch-target px-6 py-3 transition-all duration-200
            focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
   }
 
   .btn-primary {
-    @apply btn bg-primary text-on-primary hover:bg-primary/90 active:bg-primary/80;
+    @apply btn bg-primary text-on-primary hover:bg-primary/90 active:bg-primary/80 shadow-lg;
   }
 
   .btn-secondary {
@@ -83,8 +106,8 @@
   }
 
   .input-field {
-    @apply w-full min-h-touch-target px-4 py-3 rounded-lg
-           bg-surface-container-low border border-outline
+    @apply w-full min-h-touch-target px-4 py-3 rounded-2xl
+           bg-surface-container-low border-2 border-outline
            text-body-lg text-on-surface placeholder:text-on-surface-variant
            focus:border-primary focus:ring-2 focus:ring-primary/20
            transition-all duration-200;
@@ -105,6 +128,13 @@
   .touch-target {
     @apply min-h-touch-target min-w-touch-target;
   }
+
+  /* Chart grid background */
+  .chart-grid {
+    background-image: linear-gradient(to right, #e1e3e0 1px, transparent 1px),
+      linear-gradient(to bottom, #e1e3e0 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
 }
 
 @layer utilities {
@@ -112,28 +142,28 @@
     font-size: 40px;
     line-height: 48px;
     font-weight: 700;
-    font-family: var(--font-be-vietnam-pro);
+    font-family: var(--font-manrope);
   }
 
   .text-headline-md {
     font-size: 24px;
     line-height: 32px;
     font-weight: 600;
-    font-family: var(--font-be-vietnam-pro);
+    font-family: var(--font-manrope);
   }
 
   .text-body-lg {
     font-size: 18px;
     line-height: 28px;
     font-weight: 400;
-    font-family: var(--font-be-vietnam-pro);
+    font-family: var(--font-inter);
   }
 
   .text-body-md {
     font-size: 16px;
     line-height: 24px;
     font-weight: 400;
-    font-family: var(--font-be-vietnam-pro);
+    font-family: var(--font-inter);
   }
 
   .text-label-lg {
@@ -141,11 +171,11 @@
     line-height: 20px;
     font-weight: 600;
     letter-spacing: 0.5px;
-    font-family: var(--font-be-vietnam-pro);
+    font-family: var(--font-inter);
   }
 
   .bg-surface-tint {
-    background-color: rgba(13, 105, 105, 0.1);
+    background-color: rgba(19, 105, 100, 0.1);
   }
 
   .gradient-warm {

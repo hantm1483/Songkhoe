@@ -5,12 +5,11 @@ import { Page } from "@/components/layout/page";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Icon } from "@/components/ui/icon";
 import { GlucoseChart, GlucoseDataPoint } from "@/components/charts/glucose-chart";
-import { Droplets, Plus, Calendar, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { glucoseThresholds } from "@/lib/design-system";
+import { cn } from "@/lib/utils";
 
 // Types
 interface GlucoseReading {
@@ -33,18 +32,15 @@ function generateMockGlucoseData(): GlucoseReading[] {
   const today = new Date();
   const data: GlucoseReading[] = [];
 
-  // Generate readings for the past 14 days
   for (let i = 13; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
 
-    // 2-3 readings per day
     const readingsCount = Math.floor(Math.random() * 2) + 2;
     const timings = ["fasting", "before_meal", "after_meal", "bedtime"] as const;
 
     for (let j = 0; j < readingsCount; j++) {
       const timing = timings[Math.floor(Math.random() * timings.length)];
-      // Realistic glucose values (4-10 mmol/L)
       let baseValue = 5.5 + Math.random() * 2;
       if (timing === "after_meal") baseValue += 2;
       if (timing === "fasting") baseValue -= 0.5;
@@ -71,33 +67,122 @@ function getStatus(value: number): "normal" | "high" | "low" {
   return "normal";
 }
 
-function getStatusBadgeVariant(status: "normal" | "high" | "low") {
-  switch (status) {
-    case "normal":
-      return "success";
-    case "high":
-      return "error";
-    case "low":
-      return "warning";
-  }
+// Glucose Chart Card with chart-grid background
+function GlucoseChartCard({ data }: { data: GlucoseDataPoint[] }) {
+  const latestValue = data[0]?.value || 0;
+  const status = getStatus(latestValue);
+
+  const statusLabels = {
+    normal: "Ổn định",
+    high: "Cao",
+    low: "Thấp",
+  };
+
+  return (
+    <Card variant="elevated" className="w-full rounded-3xl">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Icon name="timeline" className="w-5 h-5 text-primary" filled />
+            Đường huyết 7 ngày
+          </CardTitle>
+          <span className={cn(
+            "px-3 py-1 rounded-full text-label-lg font-medium bg-primary text-on-primary",
+            status === "high" && "bg-error text-white",
+            status === "low" && "bg-warning text-amber-900"
+          )}>
+            {statusLabels[status]}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="chart-grid rounded-2xl p-4 min-h-[200px]">
+          {data.length > 0 ? (
+            <GlucoseChart data={data} showNormalRange />
+          ) : (
+            <div className="h-64 flex items-center justify-center text-on-surface-variant">
+              Chưa có dữ liệu
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("vi-VN", {
-    day: "numeric",
-    month: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+// Glucose History Item with color coding
+function GlucoseHistoryItem({ reading }: { reading: GlucoseReading }) {
+  const status = getStatus(reading.value);
+  const timingLabel =
+    reading.timing === "fasting"
+      ? "Lúc đói"
+      : reading.timing === "before_meal"
+      ? "Trước ăn"
+      : reading.timing === "after_meal"
+      ? "Sau ăn"
+      : "Trước ngủ";
+
+  const timeLabel = reading.timing === "fasting" ? "Sáng" : reading.timing === "after_meal" ? "Chiều" : "";
+
+  return (
+    <div className={cn(
+      "flex items-center justify-between p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant",
+      status === "normal" && "border-l-4 border-l-primary",
+      status === "high" && "border-l-4 border-l-error",
+      status === "low" && "border-l-4 border-l-tertiary"
+    )}>
+      <div className="flex items-center gap-3">
+        <Icon
+          name="water_drop"
+          className={cn(
+            "w-5 h-5",
+            status === "normal" ? "text-primary" :
+            status === "high" ? "text-error" : "text-tertiary"
+          )}
+          filled
+        />
+        <div>
+          <div className="text-body-lg font-semibold text-on-surface">
+            {timingLabel} {timeLabel && `(${timeLabel})`}
+          </div>
+          <div className="text-label-lg text-on-surface-variant">
+            {reading.value} mmol/L
+          </div>
+        </div>
+      </div>
+      <div className="text-right">
+        <div className="text-body-lg font-semibold text-on-surface">
+          {reading.value}
+        </div>
+        <div className="text-label-lg text-on-surface-variant">
+          {new Date(reading.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function formatShortDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("vi-VN", {
-    day: "numeric",
-    month: "numeric",
-  });
+// Add Glucose Card
+function AddGlucoseCard({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-primary-container text-on-primary-container shadow-lg active:scale-95 transition-transform"
+    >
+      <Icon name="add" className="w-8 h-8" />
+      <span className="text-label-lg font-medium">Thêm mới</span>
+    </button>
+  );
+}
+
+// Reminder Card
+function ReminderCard({ count }: { count: number }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-secondary-container text-on-secondary-container">
+      <Icon name="notifications" className="w-8 h-8" filled />
+      <span className="text-label-lg font-medium">{count} thuốc</span>
+    </div>
+  );
 }
 
 // Globe Chart Data Converter
@@ -111,7 +196,6 @@ function getChartData(readings: GlucoseReading[]): GlucoseDataPoint[] {
     return diffDays <= 6;
   });
 
-  // Group by date and get average
   const grouped: Record<string, number[]> = {};
   last7Days.forEach((r) => {
     const dateKey = new Date(r.created_at).toISOString().split("T")[0];
@@ -125,280 +209,66 @@ function getChartData(readings: GlucoseReading[]): GlucoseDataPoint[] {
   }));
 }
 
-// Glucose Log Form
-function GlucoseLogForm({
-  onSubmit,
-  onCancel,
-}: {
-  onSubmit: (data: { value: number; timing: string; notes?: string }) => void;
-  onCancel: () => void;
-}) {
-  const [value, setValue] = useState("");
-  const [timing, setTiming] = useState("fasting");
-  const [notes, setNotes] = useState("");
-  const [error, setError] = useState("");
-
-  const handleSubmit = () => {
-    const numValue = parseFloat(value);
-    if (isNaN(numValue) || numValue < 1 || numValue > 20) {
-      setError("Vui lòng nhập giá trị hợp lệ (1-20)");
-      return;
-    }
-
-    onSubmit({ value: numValue, timing, notes: notes || undefined });
-  };
-
-  return (
-    <Card variant="elevated" className="w-full">
-      <CardHeader>
-        <CardTitle>Thêm đường huyết mới</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Input
-          label="Chỉ số đường huyết (mmol/L)"
-          type="number"
-          step="0.1"
-          min="1"
-          max="20"
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-            setError("");
-          }}
-          error={error}
-          placeholder="VD: 6.5"
-        />
-
-        <Select
-          label="Thời điểm đo"
-          options={TIMING_OPTIONS}
-          value={timing}
-          onChange={(e) => setTiming(e.target.value)}
-        />
-
-        <Input
-          label="Ghi chú (tuỳ chọn)"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="VD: Ăn sáng hơi muộn..."
-        />
-
-        <div className="flex gap-3 pt-2">
-          <Button variant="primary" onClick={handleSubmit} className="flex-1">
-            <Plus className="w-5 h-5" />
-            Lưu
-          </Button>
-          <Button variant="ghost" onClick={onCancel}>
-            Huỷ
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Glucose History List
-function GlucoseHistoryList({
-  readings,
-  onLoadMore,
-}: {
-  readings: GlucoseReading[];
-  onLoadMore?: () => void;
-}) {
-  // Group by date
-  const grouped: Record<string, GlucoseReading[]> = {};
-  readings.forEach((r) => {
-    const dateKey = new Date(r.created_at).toLocaleDateString("vi-VN");
-    if (!grouped[dateKey]) grouped[dateKey] = [];
-    grouped[dateKey].push(r);
-  });
-
-  return (
-    <div className="space-y-4">
-      {Object.entries(grouped).map(([date, items]) => (
-        <div key={date}>
-          <h3 className="text-label-lg font-semibold text-on-surface-variant mb-2 flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            {date}
-          </h3>
-          <div className="space-y-2">
-            {items.map((reading) => {
-              const status = getStatus(reading.value);
-              const timingLabel =
-                reading.timing === "fasting"
-                  ? "Lúc đói"
-                  : reading.timing === "before_meal"
-                  ? "Trước ăn"
-                  : reading.timing === "after_meal"
-                  ? "Sau ăn"
-                  : "Trước ngủ";
-
-              return (
-                <div
-                  key={reading.id}
-                  className={cn(
-                    "flex items-center justify-between p-3 rounded-lg bg-surface-container-low"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <Droplets
-                      className={cn(
-                        "w-5 h-5",
-                        status === "normal"
-                          ? "text-primary"
-                          : status === "high"
-                          ? "text-error"
-                          : "text-warning"
-                      )}
-                    />
-                    <div>
-                      <div className="text-body-lg font-semibold text-on-surface">
-                        {reading.value} mmol/L
-                      </div>
-                      <div className="text-label-lg text-on-surface-variant">
-                        {timingLabel}
-                        {reading.notes && ` - ${reading.notes}`}
-                      </div>
-                    </div>
-                  </div>
-                  <Badge variant={getStatusBadgeVariant(status)}>
-                    {status === "normal"
-                      ? "Bình thường"
-                      : status === "high"
-                      ? "Cao"
-                      : "Thấp"}
-                  </Badge>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-      {onLoadMore && readings.length > 0 && (
-        <Button variant="ghost" onClick={onLoadMore} className="w-full">
-          Xem thêm
-          <ChevronRight className="w-5 h-5" />
-        </Button>
-      )}
-    </div>
-  );
-}
-
 // Main Page Component
 export default function NhatkyPage() {
   const [readings, setReadings] = useState<GlucoseReading[]>([]);
-  const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load mock data
     setTimeout(() => {
       setReadings(generateMockGlucoseData());
       setLoading(false);
-    }, 500);
+    }, 300);
   }, []);
 
   const chartData = getChartData(readings);
-
-  const handleSubmit = (data: { value: number; timing: string; notes?: string }) => {
-    const newReading: GlucoseReading = {
-      id: Date.now().toString(),
-      value: data.value,
-      timing: data.timing as GlucoseReading["timing"],
-      notes: data.notes,
-      created_at: new Date().toISOString(),
-    };
-
-    setReadings((prev) => [newReading, ...prev]);
-    setShowForm(false);
-  };
-
-  const todayStats = readings
-    .filter((r) => {
-      const today = new Date().toDateString();
-      return new Date(r.created_at).toDateString() === today;
-    })
-    .reduce(
-      (acc, r) => {
-        acc.count++;
-        acc.sum += r.value;
-        return acc;
-      },
-      { count: 0, sum: 0 }
-    );
-
-  const avgGlucose = todayStats.count > 0 ? todayStats.sum / todayStats.count : null;
+  const todayReadings = readings.filter((r) => {
+    const today = new Date().toDateString();
+    return new Date(r.created_at).toDateString() === today;
+  });
 
   return (
-    <Page title="Nhật ký">
-      <div className="space-y-4 p-6">
-        {/* Today's Stats */}
-        <Card variant="elevated" className="w-full">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Droplets className="w-5 h-5 text-primary" />
-              Đường huyết 7 ngày
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {chartData.length > 0 ? (
-              <GlucoseChart data={chartData} showNormalRange />
-            ) : (
-              <div className="h-64 flex items-center justify-center text-on-surface-variant">
-                {loading ? "Đang tải..." : "Chưa có dữ liệu"}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+    <Page title="Theo dõi tiểu đường">
+      <div className="p-6 space-y-4">
+        {/* Glucose Chart Card */}
+        <GlucoseChartCard data={chartData} />
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-3">
-          <Card variant="default" className="text-center">
-            <CardContent className="py-3">
-              <div className="text-label-lg text-on-surface-variant">
-                Số lần đo hôm nay
-              </div>
-              <div className="text-headline-md text-primary">{todayStats.count}</div>
-            </CardContent>
-          </Card>
-          <Card variant="default" className="text-center">
-            <CardContent className="py-3">
-              <div className="text-label-lg text-on-surface-variant">Trung bình hôm nay</div>
-              <div className="text-headline-md text-primary">
-                {avgGlucose ? `${avgGlucose.toFixed(1)}` : "--"}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="p-4 rounded-2xl bg-surface-container-lowest text-center border border-outline-variant">
+            <div className="text-label-lg text-on-surface-variant">Số lần đo hôm nay</div>
+            <div className="text-headline-md text-primary">{todayReadings.length}</div>
+          </div>
+          <div className="p-4 rounded-2xl bg-surface-container-lowest text-center border border-outline-variant">
+            <div className="text-label-lg text-on-surface-variant">Trung bình</div>
+            <div className="text-headline-md text-primary">
+              {todayReadings.length > 0
+                ? (todayReadings.reduce((a, b) => a + b.value, 0) / todayReadings.length).toFixed(1)
+                : "--"}
+            </div>
+          </div>
         </div>
 
-        {/* Add Button / Form */}
-        {showForm ? (
-          <GlucoseLogForm
-            onSubmit={handleSubmit}
-            onCancel={() => setShowForm(false)}
-          />
-        ) : (
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={() => setShowForm(true)}
-            className="w-full"
-          >
-            <Plus className="w-5 h-5" />
-            Thêm đường huyết
-          </Button>
-        )}
+        {/* Add and Reminder buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <AddGlucoseCard onClick={() => {}} />
+          <ReminderCard count={3} />
+        </div>
 
         {/* History */}
         <div>
-          <h2 className="text-headline-md text-on-surface mb-3">Lịch sử</h2>
-          {!loading && readings.length > 0 ? (
-            <GlucoseHistoryList readings={readings.slice(0, 20)} />
+          <h2 className="text-headline-md text-on-surface mb-3">Lịch sử hôm nay</h2>
+          {!loading && todayReadings.length > 0 ? (
+            <div className="space-y-2">
+              {todayReadings.slice(0, 5).map((reading) => (
+                <GlucoseHistoryItem key={reading.id} reading={reading} />
+              ))}
+            </div>
           ) : loading ? (
             <div className="text-center py-8 text-on-surface-variant">Đang tải...</div>
           ) : (
             <div className="text-center py-8 text-on-surface-variant">
-              Chưa có dữ liệu đường huyết
+              Chưa có dữ liệu hôm nay
             </div>
           )}
         </div>

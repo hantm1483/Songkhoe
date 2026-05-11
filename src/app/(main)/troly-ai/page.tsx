@@ -9,8 +9,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Page } from "@/components/layout/page";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Send, Bot, User, Trash2, Plus } from "lucide-react";
+import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
@@ -41,7 +40,7 @@ const INITIAL_GREETING = {
   created_at: new Date().toISOString(),
 };
 
-// Chat Message Component
+// Chat Message Component - User (right, bg-primary), AI (left, surface)
 function ChatMessage({ message }: { message: Message }) {
   const isUser = message.role === "user";
 
@@ -52,6 +51,7 @@ function ChatMessage({ message }: { message: Message }) {
         isUser ? "ml-auto flex-row-reverse" : "mr-auto"
       )}
     >
+      {/* Avatar - AI uses monitor_heart icon */}
       <div
         className={cn(
           "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
@@ -60,14 +60,18 @@ function ChatMessage({ message }: { message: Message }) {
             : "bg-secondary text-on-secondary"
         )}
       >
-        {isUser ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+        {isUser ? (
+          <Icon name="person" className="w-5 h-5" />
+        ) : (
+          <Icon name="monitor_heart" className="w-5 h-5" filled />
+        )}
       </div>
       <div
         className={cn(
           "p-4 rounded-2xl",
           isUser
             ? "bg-primary text-on-primary rounded-br-sm"
-            : "bg-surface-container text-on-surface rounded-bl-sm"
+            : "bg-surface text-on-surface rounded-bl-sm"
         )}
       >
         <div className="text-body-lg whitespace-pre-wrap leading-relaxed">
@@ -78,7 +82,7 @@ function ChatMessage({ message }: { message: Message }) {
   );
 }
 
-// Chat Input Component
+// Chat Input Component - search icon prefix, arrow_forward suffix
 function ChatInput({
   onSend,
   disabled,
@@ -106,6 +110,10 @@ function ChatInput({
   return (
     <div className="flex gap-3 items-end">
       <div className="flex-1 relative">
+        <Icon
+          name="search"
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant"
+        />
         <textarea
           ref={textareaRef}
           value={input}
@@ -113,7 +121,7 @@ function ChatInput({
           onKeyDown={handleKeyDown}
           placeholder="Nhập tin nhắn..."
           className={cn(
-            "w-full min-h-touch-target px-4 py-3 rounded-xl resize-none",
+            "w-full min-h-touch-target px-10 py-3 rounded-2xl resize-none",
             "bg-surface-container border border-outline",
             "text-body-lg text-on-surface placeholder:text-on-surface-variant",
             "focus:border-primary focus:ring-2 focus:ring-primary/20",
@@ -123,9 +131,32 @@ function ChatInput({
           disabled={disabled}
         />
       </div>
-      <Button variant="primary" onClick={handleSubmit} disabled={disabled || !input.trim()} className="flex-shrink-0">
-        <Send className="w-5 h-5" />
+      <Button
+        variant="primary"
+        onClick={handleSubmit}
+        disabled={disabled || !input.trim()}
+        className="flex-shrink-0"
+      >
+        <Icon name="arrow_forward" className="w-5 h-5" />
       </Button>
+    </div>
+  );
+}
+
+// Typing Indicator - 3 animated dots
+function TypingIndicator() {
+  return (
+    <div className="flex gap-3">
+      <div className="bg-secondary text-on-secondary w-8 h-8 rounded-full flex items-center justify-center">
+        <Icon name="monitor_heart" className="w-5 h-5" filled />
+      </div>
+      <div className="bg-surface p-4 rounded-2xl rounded-bl-sm">
+        <div className="flex gap-1">
+          <span className="w-2 h-2 bg-on-surface-variant rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+          <span className="w-2 h-2 bg-on-surface-variant rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+          <span className="w-2 h-2 bg-on-surface-variant rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -172,11 +203,11 @@ function ConversationList({
           key={conv.id}
           onClick={() => onSelect(conv.id)}
           className={cn(
-            "w-full flex items-center justify-between gap-2 p-3 rounded-lg text-left",
+            "w-full flex items-center justify-between gap-2 p-3 rounded-xl text-left",
             "transition-colors duration-200",
             activeId === conv.id
               ? "bg-primary/10 text-primary"
-              : "bg-surface-container-low hover:bg-surface-container text-on-surface"
+              : "bg-surface-container-high hover:bg-surface-container text-on-surface"
           )}
         >
           <span className="text-body-sm truncate flex-1">
@@ -201,6 +232,11 @@ export default function TrolyAIPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
@@ -289,11 +325,6 @@ export default function TrolyAIPage() {
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
-
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   // Handle conversation selection
   const handleSelectConversation = async (id: string) => {
@@ -384,14 +415,14 @@ export default function TrolyAIPage() {
   };
 
   return (
-    <Page title="Trợ lý AI">
+    <Page title="Tâm AI">
       <div className="flex flex-col h-full">
         {/* Conversation List */}
         <div className="hidden md:block p-4 border-b border-outline-variant">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-headline-md text-on-surface">Tâm - AI</h2>
             <Button variant="ghost" onClick={handleNewConversation}>
-              <Plus className="w-4 h-4 mr-1" />
+              <Icon name="add" className="w-4 h-4 mr-1" />
               Tin mới
             </Button>
           </div>
@@ -408,7 +439,7 @@ export default function TrolyAIPage() {
             <div className="flex items-center justify-center h-full">
               <div className="text-center p-8">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
-                  <Bot className="w-8 h-8 text-on-secondary" />
+                  <Icon name="monitor_heart" className="w-8 h-8 text-on-secondary" filled />
                 </div>
                 <h2 className="text-lg font-medium text-on-surface mb-2">
                   Chào bạn! Tôi là Tâm
@@ -417,7 +448,7 @@ export default function TrolyAIPage() {
                   Tôi sẽ đồng hành cùng bạn trên hành trình quản lý tiểu đường.
                 </p>
                 <Button variant="primary" onClick={handleNewConversation}>
-                  <Plus className="w-4 h-4 mr-1" />
+                  <Icon name="add" className="w-4 h-4 mr-1" />
                   Bắt đầu trò chuyện
                 </Button>
               </div>
@@ -428,23 +459,10 @@ export default function TrolyAIPage() {
             <ChatMessage key={message.id} message={message} />
           ))}
 
-          {loading && (
-            <div className="flex gap-3">
-              <div className="bg-secondary text-on-secondary w-8 h-8 rounded-full flex items-center justify-center">
-                <Bot className="w-5 h-5" />
-              </div>
-              <div className="bg-surface-container p-4 rounded-2xl rounded-bl-sm">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-on-surface-variant rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="w-2 h-2 bg-on-surface-variant rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="w-2 h-2 bg-on-surface-variant rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                </div>
-              </div>
-            </div>
-          )}
+          {loading && <TypingIndicator />}
 
           {error && (
-            <div className="bg-error/10 text-error p-3 rounded-lg text-body-sm">
+            <div className="bg-error/10 text-error p-3 rounded-xl text-body-sm">
               {error}
             </div>
           )}
@@ -453,7 +471,7 @@ export default function TrolyAIPage() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 bg-surface-container-low border-t border-outline-variant">
+        <div className="p-4 bg-surface-container border-t border-outline-variant">
           <ChatInput onSend={handleSendMessage} disabled={loading} />
         </div>
       </div>

@@ -7,3 +7,4 @@ export { Avatar, type AvatarProps } from "./avatar";
 export { Dialog, DialogHeader, DialogContent, DialogCloseButton, DialogTitleText, DialogActions, type DialogProps } from "./dialog";
 export { ToastProvider, useToast } from "./toast";
 export { Skeleton, SkeletonCard, SkeletonAvatar, SkeletonStatCard, type SkeletonProps } from "./skeleton";
+export { Icon, type IconProps } from "./icon";

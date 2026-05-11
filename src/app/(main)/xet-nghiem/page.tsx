@@ -5,14 +5,7 @@ import { Page } from "@/components/layout/page";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  FlaskConical,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Sparkles,
-  Calendar,
-} from "lucide-react";
+import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import {
   LineChart as RechartsLineChart,
@@ -37,7 +30,7 @@ interface LabResult {
 
 // Generate mock lab results
 function generateMockLabResults(): LabResult[] {
-  const results: LabResult[] = [
+  return [
     // HbA1c - target < 7%
     {
       id: "1",
@@ -59,16 +52,6 @@ function generateMockLabResults(): LabResult[] {
       reference_min: 4.0,
       reference_max: 7.0,
     },
-    {
-      id: "3",
-      name: "HbA1c",
-      value: 7.5,
-      unit: "%",
-      type: "hba1c",
-      date: new Date(-90 * 24 * 60 * 60 * 1000).toISOString(),
-      reference_min: 4.0,
-      reference_max: 7.0,
-    },
     // Cholesterol - target < 200 mg/dL
     {
       id: "4",
@@ -77,26 +60,6 @@ function generateMockLabResults(): LabResult[] {
       unit: "mg/dL",
       type: "cholesterol",
       date: new Date(-30 * 24 * 60 * 60 * 1000).toISOString(),
-      reference_min: 0,
-      reference_max: 200,
-    },
-    {
-      id: "5",
-      name: "Cholesterol",
-      value: 195,
-      unit: "mg/dL",
-      type: "cholesterol",
-      date: new Date(-60 * 24 * 60 * 60 * 1000).toISOString(),
-      reference_min: 0,
-      reference_max: 200,
-    },
-    {
-      id: "6",
-      name: "Cholesterol",
-      value: 210,
-      unit: "mg/dL",
-      type: "cholesterol",
-      date: new Date(-90 * 24 * 60 * 60 * 1000).toISOString(),
       reference_min: 0,
       reference_max: 200,
     },
@@ -111,31 +74,7 @@ function generateMockLabResults(): LabResult[] {
       reference_min: 0.7,
       reference_max: 1.3,
     },
-    {
-      id: "8",
-      name: "Creatinine",
-      value: 1.1,
-      unit: "mg/dL",
-      type: "creatinine",
-      date: new Date(-60 * 24 * 60 * 60 * 1000).toISOString(),
-      reference_min: 0.7,
-      reference_max: 1.3,
-    },
-    {
-      id: "9",
-      name: "Creatinine",
-      value: 1.2,
-      unit: "mg/dL",
-      type: "creatinine",
-      date: new Date(-90 * 24 * 60 * 60 * 1000).toISOString(),
-      reference_min: 0.7,
-      reference_max: 1.3,
-    },
   ];
-
-  return results.sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
 }
 
 function getStatus(value: number, min: number, max: number): "normal" | "high" | "low" {
@@ -144,118 +83,79 @@ function getStatus(value: number, min: number, max: number): "normal" | "high" |
   return "normal";
 }
 
-function getTrend(
-  current: number,
-  previous: number,
-  min: number,
-  max: number
-): "up" | "down" | "stable" {
-  const range = max - min;
-  const diff = current - previous;
-  if (Math.abs(diff) < range * 0.05) return "stable";
-  return diff > 0 ? "up" : "down";
-}
-
-// Lab Result Card
-function LabResultCard({
-  results,
-  type,
+// Lab Type Tabs - segmented control, rounded-full
+function LabTypeTabs({
+  activeType,
+  onChange,
 }: {
-  results: LabResult[];
-  type: LabResult["type"];
+  activeType: "hba1c" | "cholesterol" | "creatinine";
+  onChange: (type: "hba1c" | "cholesterol" | "creatinine") => void;
 }) {
-  const filteredResults = results.filter((r) => r.type === type);
-  const latest = filteredResults[0];
-  const previous = filteredResults[1];
-
-  if (!latest) return null;
-
-  const status = getStatus(
-    latest.value,
-    latest.reference_min,
-    latest.reference_max
-  );
-  const trend = previous
-    ? getTrend(latest.value, previous.value, latest.reference_min, latest.reference_max)
-    : "stable";
-
-  const TrendIcon =
-    trend === "up"
-      ? TrendingUp
-      : trend === "down"
-      ? TrendingDown
-      : Minus;
-
-  const trendColor =
-    trend === "up"
-      ? status === "high"
-        ? "text-error"
-        : "text-primary"
-      : trend === "down"
-      ? status === "low"
-        ? "text-error"
-        : "text-primary"
-      : "text-on-surface-variant";
+  const tabs = [
+    { value: "hba1c", label: "HbA1c", icon: "timeline" },
+    { value: "cholesterol", label: "Cholesterol", icon: "favorite" },
+    { value: "creatinine", label: "Creatinine", icon: "science" },
+  ] as const;
 
   return (
-    <Card variant="elevated" className="w-full">
+    <div className="flex gap-2 p-1 rounded-full bg-surface-container">
+      {tabs.map((tab) => (
+        <button
+          key={tab.value}
+          onClick={() => onChange(tab.value)}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1 py-2 px-4 rounded-full min-h-touch-target",
+            "transition-colors duration-200",
+            activeType === tab.value
+              ? "bg-primary text-on-primary shadow-sm"
+              : "text-on-surface-variant hover:text-on-surface"
+          )}
+        >
+          <Icon name={tab.icon} className="w-5 h-5" />
+          <span className="text-label-lg">{tab.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Lab Result Card - surface-container-lowest, rounded-2xl
+function LabResultCard({ result }: { result: LabResult }) {
+  const status = getStatus(result.value, result.reference_min, result.reference_max);
+
+  return (
+    <Card variant="elevated" className="w-full rounded-2xl">
       <CardContent className="pt-4">
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-body-lg text-on-surface-variant">{latest.name}</h3>
+            <h3 className="text-body-lg text-on-surface-variant">{result.name}</h3>
             <div className="flex items-baseline gap-1 mt-1">
               <span
                 className={cn(
                   "text-display-lg font-bold",
-                  status === "normal"
-                    ? "text-primary"
-                    : status === "high"
-                    ? "text-error"
-                    : "text-warning"
+                  status === "normal" ? "text-primary" :
+                  status === "high" ? "text-error" : "text-warning"
                 )}
               >
-                {latest.value}
+                {result.value}
               </span>
               <span className="text-body-md text-on-surface-variant">
-                {latest.unit}
+                {result.unit}
               </span>
             </div>
             <div className="text-label-lg text-on-surface-variant mt-1">
-              {latest.reference_min}-{latest.reference_max}
-              {latest.unit}
+              Mục tiêu: {result.reference_min}-{result.reference_max}
             </div>
           </div>
-          <div className="text-right">
-            <Badge
-              variant={
-                status === "normal"
-                  ? "success"
-                  : status === "high"
-                  ? "error"
-                  : "warning"
-              }
-            >
-              {status === "normal"
-                ? "Bình thường"
-                : status === "high"
-                ? "Cao"
-                : "Thấp"}
-            </Badge>
-            <div className={cn("flex items-center gap-1 mt-2", trendColor)}>
-              <TrendIcon className="w-4 h-4" />
-              <span className="text-label-lg">
-                {trend === "up"
-                  ? "Tăng"
-                  : trend === "down"
-                  ? "Giảm"
-                  : "Ổn định"}
-              </span>
-            </div>
-          </div>
+          <Badge
+            variant={status === "normal" ? "success" : status === "high" ? "error" : "warning"}
+          >
+            {status === "normal" ? "Bình thường" : status === "high" ? "Cao" : "Thấp"}
+          </Badge>
         </div>
         <div className="text-label-lg text-on-surface-variant mt-2 flex items-center gap-1">
-          <Calendar className="w-4 h-4" />
-          {new Date(latest.date).toLocaleDateString("vi-VN", {
+          <Icon name="event" className="w-4 h-4" />
+          {new Date(result.date).toLocaleDateString("vi-VN", {
             day: "numeric",
             month: "numeric",
             year: "numeric",
@@ -266,8 +166,8 @@ function LabResultCard({
   );
 }
 
-// Lab Result Chart
-function LabResultChart({
+// Trend Chart with chart-grid background
+function LabTrendChart({
   results,
   type,
 }: {
@@ -297,7 +197,7 @@ function LabResultChart({
   };
 
   return (
-    <div className="h-48">
+    <div className="h-48 chart-grid rounded-2xl p-4">
       <ResponsiveContainer width="100%" height="100%">
         <RechartsLineChart data={data}>
           <XAxis
@@ -315,7 +215,7 @@ function LabResultChart({
               if (active && payload?.length) {
                 const data = payload[0].payload;
                 return (
-                  <div className="bg-surface-container-low rounded-lg px-3 py-2 shadow-soft-elevation">
+                  <div className="bg-surface-container-low rounded-xl px-3 py-2 shadow-lg">
                     <p className="text-label-lg text-on-surface-variant">{label}</p>
                     <p
                       className={cn(
@@ -350,8 +250,9 @@ function LabResultChart({
 export default function XetNghiemPage() {
   const [results, setResults] = useState<LabResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeType, setActiveType] = useState<"hba1c" | "cholesterol" | "creatinine">("hba1c");
   const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
 
   useEffect(() => {
     setTimeout(() => {
@@ -360,121 +261,75 @@ export default function XetNghiemPage() {
     }, 300);
   }, []);
 
+  const currentResults = results.filter((r) => r.type === activeType);
+
   const handleAISummary = async () => {
-    setAiLoading(true);
+    if (currentResults.length === 0) return;
+
+    const result = currentResults[0];
+    setSummarizing(true);
+    setAiSummary(null);
 
     try {
-      // Call the lab summary API
-      const response = await fetch("/api/lab-results/summary", {
+      const response = await fetch("/api/lab-results/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ labResults: results }),
+        body: JSON.stringify({ lab_result_id: result.id }),
       });
 
-      if (!response.ok) throw new Error("Failed to get summary");
-
       const data = await response.json();
-      setAiSummary(data.summary);
-    } catch (error) {
-      console.error("AI summary error:", error);
 
-      // Fallback mock summary
-      setAiSummary(
-        "Các chỉ số xét nghiệm của bạn đang ở mức ổn định. HbA1c gần đạt mục tiêu, cần duy trì chế độ ăn uống và tập thể dục đều đặn. Cholesterol trong giới hạn cho phép. Creatinine bình thường, chức năng thận tốt."
-      );
+      if (response.ok && data.data?.summary) {
+        setAiSummary(data.data.summary);
+      } else {
+        setAiSummary("Không thể tạo tóm tắt lúc này. Vui lòng thử lại.");
+      }
+    } catch (error) {
+      console.error("AI Summary error:", error);
+      setAiSummary("Đã xảy ra lỗi. Vui lòng thử lại.");
     } finally {
-      setAiLoading(false);
+      setSummarizing(false);
     }
   };
 
   return (
-    <Page title="Xét nghiệm">
-      <div className="space-y-4 p-6">
+    <Page title="Kết quả xét nghiệm">
+      <div className="p-6 space-y-4">
+        {/* Lab Type Tabs */}
+        <LabTypeTabs activeType={activeType} onChange={setActiveType} />
+
         {/* AI Summary Button */}
-        <Card variant="elevated" className="w-full">
-          <CardContent className="pt-4">
-            {aiSummary ? (
-              <div className="space-y-3">
-                <h3 className="text-body-lg font-semibold text-on-surface flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  Tóm tắt AI
-                </h3>
-                <p className="text-body-md text-on-surface-variant leading-relaxed">
-                  {aiSummary}
-                </p>
-                <Button
-                  variant="ghost"
-                  onClick={() => setAiSummary(null)}
-                  className="w-full"
-                >
-                  Tóm tắt khác
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant="primary"
-                onClick={handleAISummary}
-                disabled={aiLoading}
-                className="w-full"
-              >
-                <Sparkles className="w-5 h-5" />
-                {aiLoading ? "Đang tạo..." : "Tóm tắt bằng AI"}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <Button
+          variant="secondary"
+          className="w-full"
+          onClick={handleAISummary}
+          disabled={summarizing || currentResults.length === 0}
+        >
+          <Icon name="auto_awesome" className="w-5 h-5" />
+          {summarizing ? "Đang tạo tóm tắt..." : "Tóm tắt bằng AI"}
+        </Button>
+
+        {/* AI Summary Display */}
+        {aiSummary && (
+          <div className="p-4 rounded-2xl bg-primary-container/30 border border-primary/30">
+            <div className="flex items-start gap-2">
+              <Icon name="auto_awesome" className="w-5 h-5 text-primary mt-0.5" />
+              <p className="text-body-md text-on-surface">{aiSummary}</p>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-8 text-on-surface-variant">Đang tải...</div>
         ) : (
           <>
-            {/* HbA1c */}
-            <div>
-              <h2 className="text-headline-md text-on-surface mb-3 flex items-center gap-2">
-                <FlaskConical className="w-6 h-6 text-primary" />
-                HbA1c (Hemoglobin A1c)
-              </h2>
-              <div className="space-y-3">
-                <LabResultCard results={results} type="hba1c" />
-                <Card variant="default">
-                  <CardContent className="pt-4">
-                    <LabResultChart results={results} type="hba1c" />
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+            {/* Current Result */}
+            {currentResults.length > 0 && (
+              <LabResultCard result={currentResults[0]} />
+            )}
 
-            {/* Cholesterol */}
-            <div>
-              <h2 className="text-headline-md text-on-surface mb-3 flex items-center gap-2">
-                <FlaskConical className="w-6 h-6 text-secondary" />
-                Cholesterol
-              </h2>
-              <div className="space-y-3">
-                <LabResultCard results={results} type="cholesterol" />
-                <Card variant="default">
-                  <CardContent className="pt-4">
-                    <LabResultChart results={results} type="cholesterol" />
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            {/* Creatinine */}
-            <div>
-              <h2 className="text-headline-md text-on-surface mb-3 flex items-center gap-2">
-                <FlaskConical className="w-6 h-6 text-tertiary" />
-                Creatinine
-              </h2>
-              <div className="space-y-3">
-                <LabResultCard results={results} type="creatinine" />
-                <Card variant="default">
-                  <CardContent className="pt-4">
-                    <LabResultChart results={results} type="creatinine" />
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+            {/* Trend Chart */}
+            <LabTrendChart results={results} type={activeType} />
           </>
         )}
       </div>

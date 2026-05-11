@@ -13,11 +13,11 @@ import {
 describe('validateGlucoseLogInput', () => {
   it('validates valid glucose input', () => {
     const result = validateGlucoseLogInput({
-      value: 6.5,
+      value: 5.5, // mmol/L (equivalent to 100 mg/dL)
       timing: 'fasting',
     })
     expect(result.success).toBe(true)
-    expect(result.data?.value).toBe(6.5)
+    expect(result.data?.value).toBe(5.5)
     expect(result.data?.timing).toBe('fasting')
   })
 
@@ -28,31 +28,31 @@ describe('validateGlucoseLogInput', () => {
   })
 
   it('rejects value below minimum', () => {
-    const result = validateGlucoseLogInput({ value: 10 })
+    const result = validateGlucoseLogInput({ value: 0.5 }) // below 2 mmol/L minimum
     expect(result.success).toBe(false)
     expect(result.error).toContain('không hợp lệ')
   })
 
   it('rejects value above maximum', () => {
-    const result = validateGlucoseLogInput({ value: 650 })
+    const result = validateGlucoseLogInput({ value: 40 }) // above 35 mmol/L maximum
     expect(result.success).toBe(false)
     expect(result.error).toContain('không hợp lệ')
   })
 
   it('accepts boundary values', () => {
-    expect(validateGlucoseLogInput({ value: 20 }).success).toBe(true)
-    expect(validateGlucoseLogInput({ value: 600 }).success).toBe(true)
+    expect(validateGlucoseLogInput({ value: 2 }).success).toBe(true) // min boundary
+    expect(validateGlucoseLogInput({ value: 35 }).success).toBe(true) // max boundary
   })
 
   it('rejects invalid timing', () => {
-    const result = validateGlucoseLogInput({ value: 100, timing: 'invalid' })
+    const result = validateGlucoseLogInput({ value: 5.5, timing: 'invalid' }) // valid value, invalid timing
     expect(result.success).toBe(false)
     expect(result.error).toBe('Thời điểm đo không hợp lệ')
   })
 
   it('accepts all valid timing options', () => {
     TIMING_OPTIONS.forEach((timing) => {
-      const result = validateGlucoseLogInput({ value: 100, timing })
+      const result = validateGlucoseLogInput({ value: 5.5, timing }) // valid mmol/L value
       expect(result.success).toBe(true)
     })
   })
@@ -65,7 +65,7 @@ describe('validateGlucoseLogInput', () => {
 
   it('accepts optional notes', () => {
     const result = validateGlucoseLogInput({
-      value: 7.0,
+      value: 5.5, // mmol/L (equivalent to 100 mg/dL)
       notes: 'Sau khi tập thể dục',
     })
     expect(result.success).toBe(true)

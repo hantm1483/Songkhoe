@@ -4,10 +4,10 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-soft-cream flex flex-col">
+    <div className="min-h-screen bg-surface flex flex-col">
       {/* Branding header */}
       <header className="py-6 px-4 text-center">
-        <h1 className="text-2xl font-bold text-primary font-beVietnamPro">
+        <h1 className="text-2xl font-bold text-primary font-headline">
           Sổ Tay Tiểu Đường
         </h1>
         <p className="text-sm text-on-surface-variant mt-1">

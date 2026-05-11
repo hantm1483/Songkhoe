@@ -8,8 +8,8 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant = "default", ...props }, ref) => {
     const variants = {
-      default: "bg-surface-container-lowest rounded-lg p-4 shadow-soft-elevation",
-      elevated: "bg-surface-container-low rounded-lg p-4 shadow-soft-teal",
+      default: "bg-surface-container-lowest border border-outline-variant rounded-2xl p-4 shadow-soft-elevation",
+      elevated: "bg-surface-container-low border border-outline-variant rounded-2xl p-4 shadow-soft-teal",
     };
 
     return (
@@ -36,7 +36,7 @@ const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingEleme
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn("text-headline-md text-on-surface", className)}
+      className={cn("text-headline-md text-on-surface font-headline", className)}
       {...props}
     />
   )
@@ -46,7 +46,7 @@ CardTitle.displayName = "CardTitle";
 
 const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("text-body-md text-on-surface-variant", className)} {...props} />
+    <div ref={ref} className={cn("text-body-md text-on-surface-variant font-body", className)} {...props} />
   )
 );
 

@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useContext, useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from "lucide-react";
+import { Icon } from "@/components/ui/icon";
 
 type ToastType = "success" | "error" | "warning" | "info";
 
@@ -40,10 +40,10 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const icons = {
-    success: <CheckCircle className="w-5 h-5 text-primary" />,
-    error: <AlertCircle className="w-5 h-5 text-error" />,
-    warning: <AlertTriangle className="w-5 h-5 text-amber-600" />,
-    info: <Info className="w-5 h-5 text-secondary" />,
+    success: <Icon name="check_circle" className="w-5 h-5 text-primary" />,
+    error: <Icon name="error" className="w-5 h-5 text-error" />,
+    warning: <Icon name="warning" className="w-5 h-5 text-amber-600" />,
+    info: <Icon name="info" className="w-5 h-5 text-secondary" />,
   };
 
   const bgColors = {
@@ -75,7 +75,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
               className="min-h-touch-target min-w-touch-target flex items-center justify-center rounded-full hover:bg-surface-container transition-colors"
               aria-label="Dismiss"
             >
-              <X className="w-4 h-4 text-on-surface-variant" />
+              <Icon name="close" className="w-4 h-4 text-on-surface-variant" />
             </button>
           </div>
         ))}
