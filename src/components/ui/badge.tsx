@@ -2,29 +2,26 @@ import { HTMLAttributes, forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
-  variant?: "success" | "warning" | "error" | "default" | "gi" | "accent" | "neutral" | "secondary";
+  variant?: "primary" | "accent" | "secondary" | "neutral" | "success" | "error" | "warning";
 }
 
 const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
-  ({ className, variant = "default", ...props }, ref) => {
+  ({ className, variant = "primary", ...props }, ref) => {
     const variants = {
-      success: "bg-primary/10 text-primary border border-primary/20",
-      warning: "bg-amber-100 text-amber-700 border border-amber-200",
-      error: "bg-error/10 text-error border border-error/20",
-      default: "bg-surface-container text-on-surface-variant border border-outline font-body",
-      gi: "bg-secondary-container text-on-secondary-container rounded-full px-3 py-1 font-body",
+      primary: "bg-primary/10 text-primary",
       accent: "bg-accent/10 text-accent",
-      neutral: "bg-slate-100 text-slate-600",
       secondary: "bg-emerald-100 text-emerald-600",
+      neutral: "bg-slate-100 text-slate-600",
+      success: "bg-emerald-100 text-emerald-600",
+      error: "bg-rose-100 text-rose-600",
+      warning: "bg-amber-100 text-amber-600"
     };
 
     return (
       <span
         ref={ref}
         className={cn(
-          "inline-flex items-center px-3 py-1.5 rounded-full",
-          "text-label-lg font-semibold",
-          variant !== "gi" && "rounded-full",
+          "px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap",
           variants[variant],
           className
         )}

@@ -6,16 +6,14 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const Card = forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant = "default", ...props }, ref) => {
-    const variants = {
-      default: "bg-surface-container-lowest border border-outline-variant rounded-2xl p-4 shadow-soft-elevation",
-      elevated: "bg-surface-container-low border border-outline-variant rounded-2xl p-4 shadow-soft-teal",
-    };
-
+  ({ className, ...props }, ref) => {
     return (
       <div
         ref={ref}
-        className={cn(variants[variant], className)}
+        className={cn(
+          "glass-card p-6 h-full",
+          className
+        )}
         {...props}
       />
     );
@@ -36,7 +34,7 @@ const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingEleme
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn("text-headline-md text-on-surface font-headline", className)}
+      className={cn("text-xl font-bold text-slate-800 tracking-tight", className)}
       {...props}
     />
   )
@@ -46,7 +44,7 @@ CardTitle.displayName = "CardTitle";
 
 const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("text-body-md text-on-surface-variant font-body", className)} {...props} />
+    <div ref={ref} className={cn("text-sm text-slate-600", className)} {...props} />
   )
 );
 
