@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Page } from "@/components/layout/page";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 // Types
 interface MealLog {
@@ -20,60 +18,7 @@ interface MealLog {
   created_at: string;
 }
 
-const GI_OPTIONS = [
-  { value: "low", label: "Thấp (GI < 55)" },
-  { value: "medium", label: "Trung bình (GI 55-70)" },
-  { value: "high", label: "Cao (GI > 70)" },
-];
-
-const TIME_OPTIONS = Array.from({ length: 15 }, (_, i) => ({
-  value: `${6 + i}:00`,
-  label: `${6 + i}:00`,
-}));
-
-// Generate mock meals
-function generateMockMeals(): MealLog[] {
-  const meals: MealLog[] = [
-    {
-      id: "1",
-      name: "Bữa sáng",
-      gi_level: "medium",
-      time: "07:00",
-      notes: "Phở bò",
-      created_at: new Date(Date.now() - 0 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "2",
-      name: "Bữa trưa",
-      gi_level: "low",
-      time: "12:00",
-      notes: "Cơm + cá hồi + rau cải",
-      created_at: new Date(Date.now() - 0 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "3",
-      name: "Bữa xế",
-      gi_level: "medium",
-      time: "15:00",
-      notes: "Chuối",
-      created_at: new Date(Date.now() - 0 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "4",
-      name: "Bữa tối",
-      gi_level: "low",
-      time: "19:00",
-      notes: "Xúp + thịt gà + cơm",
-      created_at: new Date(Date.now() - 0 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
-
-  return meals.sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
-}
-
-// GI Legend - emoji colored
+// GI Legend
 function GILegend() {
   return (
     <div className="space-y-2 p-4 rounded-2xl bg-surface-container-lowest">
@@ -110,7 +55,7 @@ function GIBadge({ level }: { level: "low" | "medium" | "high" }) {
   );
 }
 
-// Meal History Item - rounded-2xl, GI badge
+// Meal History Item
 function MealHistoryItem({ meal }: { meal: MealLog }) {
   return (
     <div className="flex items-center justify-between p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant">
@@ -129,7 +74,7 @@ function MealHistoryItem({ meal }: { meal: MealLog }) {
   );
 }
 
-// Featured Meal Plan Hero - rounded-3xl
+// Featured Meal Plan Hero
 function MealPlanFeatured() {
   return (
     <div className="relative rounded-3xl bg-gradient-to-br from-primary-container to-secondary-container p-6 overflow-hidden">
@@ -155,13 +100,33 @@ function MealPlanFeatured() {
 export default function BuaAnPage() {
   const [meals, setMeals] = useState<MealLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("meals")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (fetchError) throw fetchError;
+      setMeals(data || []);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setError("Không thể tải dữ liệu");
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase]);
 
   useEffect(() => {
-    setTimeout(() => {
-      setMeals(generateMockMeals());
-      setLoading(false);
-    }, 300);
-  }, []);
+    fetchData();
+  }, [fetchData]);
 
   // Calculate today's stats
   const todayMeals = meals.filter((m) => {

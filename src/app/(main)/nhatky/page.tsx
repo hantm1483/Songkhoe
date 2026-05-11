@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Page } from "@/components/layout/page";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Icon } from "@/components/ui/icon";
 import { GlucoseChart, GlucoseDataPoint } from "@/components/charts/glucose-chart";
 import { glucoseThresholds } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 // Types
 interface GlucoseReading {
@@ -17,7 +18,16 @@ interface GlucoseReading {
   value: number;
   timing: "fasting" | "before_meal" | "after_meal" | "bedtime";
   notes?: string;
+  measured_at: string;
   created_at: string;
+}
+
+interface Medication {
+  id: string;
+  name: string;
+  dosage: string | null;
+  schedule_time: string | null;
+  frequency: string | null;
 }
 
 const TIMING_OPTIONS = [
@@ -27,47 +37,13 @@ const TIMING_OPTIONS = [
   { value: "bedtime", label: "Trước ngủ" },
 ];
 
-// Generate mock data
-function generateMockGlucoseData(): GlucoseReading[] {
-  const today = new Date();
-  const data: GlucoseReading[] = [];
-
-  for (let i = 13; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-
-    const readingsCount = Math.floor(Math.random() * 2) + 2;
-    const timings = ["fasting", "before_meal", "after_meal", "bedtime"] as const;
-
-    for (let j = 0; j < readingsCount; j++) {
-      const timing = timings[Math.floor(Math.random() * timings.length)];
-      let baseValue = 5.5 + Math.random() * 2;
-      if (timing === "after_meal") baseValue += 2;
-      if (timing === "fasting") baseValue -= 0.5;
-
-      const value = Math.round((baseValue + (Math.random() - 0.5)) * 10) / 10;
-
-      data.push({
-        id: `${i}-${j}`,
-        value: Math.max(3, Math.min(12, value)),
-        timing,
-        created_at: new Date(date.setHours(7 + j * 4, Math.floor(Math.random() * 60))).toISOString(),
-      });
-    }
-  }
-
-  return data.sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
-}
-
 function getStatus(value: number): "normal" | "high" | "low" {
   if (value < glucoseThresholds.low) return "low";
   if (value > glucoseThresholds.high) return "high";
   return "normal";
 }
 
-// Glucose Chart Card with chart-grid background
+// Glucose Chart Card
 function GlucoseChartCard({ data }: { data: GlucoseDataPoint[] }) {
   const latestValue = data[0]?.value || 0;
   const status = getStatus(latestValue);
@@ -110,7 +86,7 @@ function GlucoseChartCard({ data }: { data: GlucoseDataPoint[] }) {
   );
 }
 
-// Glucose History Item with color coding
+// Glucose History Item
 function GlucoseHistoryItem({ reading }: { reading: GlucoseReading }) {
   const status = getStatus(reading.value);
   const timingLabel =
@@ -155,7 +131,7 @@ function GlucoseHistoryItem({ reading }: { reading: GlucoseReading }) {
           {reading.value}
         </div>
         <div className="text-label-lg text-on-surface-variant">
-          {new Date(reading.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+          {new Date(reading.measured_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
         </div>
       </div>
     </div>
@@ -185,10 +161,10 @@ function ReminderCard({ count }: { count: number }) {
   );
 }
 
-// Globe Chart Data Converter
+// Convert DB data to chart data
 function getChartData(readings: GlucoseReading[]): GlucoseDataPoint[] {
   const last7Days = readings.filter((r) => {
-    const readingDate = new Date(r.created_at);
+    const readingDate = new Date(r.measured_at);
     const today = new Date();
     const diffDays = Math.floor(
       (today.getTime() - readingDate.getTime()) / (1000 * 60 * 60 * 24)
@@ -198,7 +174,7 @@ function getChartData(readings: GlucoseReading[]): GlucoseDataPoint[] {
 
   const grouped: Record<string, number[]> = {};
   last7Days.forEach((r) => {
-    const dateKey = new Date(r.created_at).toISOString().split("T")[0];
+    const dateKey = new Date(r.measured_at).toISOString().split("T")[0];
     if (!grouped[dateKey]) grouped[dateKey] = [];
     grouped[dateKey].push(r.value);
   });
@@ -212,19 +188,51 @@ function getChartData(readings: GlucoseReading[]): GlucoseDataPoint[] {
 // Main Page Component
 export default function NhatkyPage() {
   const [readings, setReadings] = useState<GlucoseReading[]>([]);
+  const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch glucose logs
+      const { data: glucoseData, error: glucoseError } = await supabase
+        .from("glucose_logs")
+        .select("*")
+        .order("measured_at", { ascending: false })
+        .limit(100);
+
+      if (glucoseError) throw glucoseError;
+
+      // Fetch medications
+      const { data: medData, error: medError } = await supabase
+        .from("medications")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (medError) throw medError;
+
+      setReadings(glucoseData || []);
+      setMedications(medData || []);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setError("Không thể tải dữ liệu");
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase]);
 
   useEffect(() => {
-    setTimeout(() => {
-      setReadings(generateMockGlucoseData());
-      setLoading(false);
-    }, 300);
-  }, []);
+    fetchData();
+  }, [fetchData]);
 
   const chartData = getChartData(readings);
   const todayReadings = readings.filter((r) => {
     const today = new Date().toDateString();
-    return new Date(r.created_at).toDateString() === today;
+    return new Date(r.measured_at).toDateString() === today;
   });
 
   return (
@@ -252,7 +260,7 @@ export default function NhatkyPage() {
         {/* Add and Reminder buttons */}
         <div className="grid grid-cols-2 gap-3">
           <AddGlucoseCard onClick={() => {}} />
-          <ReminderCard count={3} />
+          <ReminderCard count={medications.length} />
         </div>
 
         {/* History */}

@@ -78,6 +78,10 @@
     @apply bg-primary text-white shadow-lg shadow-primary/30;
   }
 
+  .fill-current {
+    fill: currentColor;
+  }
+
   .card {
     @apply bg-surface-container-lowest rounded-xl p-4 shadow-soft-elevation;
   }

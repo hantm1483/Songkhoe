@@ -2,307 +2,302 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Page } from "@/components/layout/page";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icon";
+import {
+  Camera,
+  MapPin,
+  Image as ImageIcon,
+  MoreVertical,
+  Heart,
+  MessageSquare,
+  Share2,
+  Plus,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Types
-interface MemorialPhoto {
-  id: string;
-  title: string;
-  image_url: string;
-  description?: string;
-  created_at: string;
-}
-
-interface MemorialQuote {
-  id: string;
-  content: string;
-  author?: string;
-  created_at: string;
-}
-
-interface MemorialStory {
+interface Story {
   id: string;
   title: string;
   content: string;
+  image_url?: string;
+  location?: string;
+  user_id: string;
+  user_name?: string;
+  user_avatar?: string;
   created_at: string;
+  likes_count?: number;
+  comments_count?: number;
 }
 
-// Mock data generators
-function generateMockPhotos(): MemorialPhoto[] {
-  return [
-    {
-      id: "1",
-      title: "Kỷ niệm ngày sinh nhật",
-      image_url: "https://images.unsplash.com/photo-1511895426328-dc8714195340?w=400",
-      description: "Ngày sinh nhật của mẹ năm 2020",
-      created_at: new Date(-180 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "2",
-      title: "Chuyến đi Đà Nẵng",
-      image_url: "https://images.unsplash.com/photo-1504703395950-b89145a5425b?w=400",
-      description: "Gia đình cùng đi Đà Nẵng năm 2019",
-      created_at: new Date(-365 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
+// Format relative time
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return "Vừa xong";
+  if (diffMins < 60) return `${diffMins} phút trước`;
+  if (diffHours < 24) return `${diffHours} giờ trước`;
+  if (diffDays === 1) return "Hôm qua";
+  if (diffDays < 7) return `${diffDays} ngày trước`;
+  return date.toLocaleDateString("vi-VN");
 }
 
-function generateMockQuotes(): MemorialQuote[] {
-  return [
-    {
-      id: "1",
-      content: "Cuộc sống không phải là việc chờ đợi bão tố đi qua, mà là học cách nhảy múa dưới mưa.",
-      author: "Ngạn",
-      created_at: new Date(-30 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "2",
-      content: "Mẹ luôn nói: 'Con là món quà quý nhất mà cuộc sống đã ban tặng.'",
-      author: "Gia đình",
-      created_at: new Date(-60 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
-}
+// Post Composer Component
+function PostComposer({
+  onSubmit,
+  isSubmitting,
+}: {
+  onSubmit: (content: string) => Promise<void>;
+  isSubmitting: boolean;
+}) {
+  const [content, setContent] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-function generateMockStories(): MemorialStory[] {
-  return [
-    {
-      id: "1",
-      title: "Kỷ niệm đầu tiên",
-      content: "Đó là một buổi chiều mùa hè năm 1995, khi tôi còn nhỏ. Mẹ dẫn tôi đi chơi công viên lần đầu tiên...",
-      created_at: new Date(-90 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
-}
+  const handleSubmit = async () => {
+    if (!content.trim() || isSubmitting) return;
 
-// Tab type
-type TabType = "photos" | "quotes" | "stories";
+    await onSubmit(content.trim());
+    setContent("");
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 2000);
 
-// Memory Banner - primary-container, rounded-3xl
-function MemoryBanner() {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setContent(e.target.value);
+    // Auto-resize textarea
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  };
+
   return (
-    <div className="relative rounded-3xl bg-gradient-to-br from-primary-container to-secondary-container p-6 overflow-hidden">
-      <div className="absolute right-0 bottom-0 w-32 h-32 opacity-20">
-        <Icon name="auto_stories" className="w-full h-full" />
-      </div>
-      <div className="relative z-10">
-        <h2 className="text-headline-md text-on-primary-container mb-2">
-          Nhật ký hành trình
-        </h2>
-        <p className="text-body-md text-on-primary-container/80">
-          Lưu giữ những khoảnh khắc...
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// Featured Story Card - rounded-3xl, image hover:scale-105
-function FeaturedStoryCard({ story }: { story: MemorialStory }) {
-  return (
-    <Card variant="elevated" className="w-full rounded-3xl overflow-hidden">
-      <div className="aspect-video bg-surface-container">
-        <Icon name="auto_stories" className="w-full h-full text-on-surface-variant p-8" />
-      </div>
-      <CardContent className="pt-4">
-        <span className="text-label-lg text-primary font-medium">Kinh nghiệm</span>
-        <h3 className="text-body-lg font-semibold text-on-surface mb-2 line-clamp-2">
-          {story.title}
-        </h3>
-        <p className="text-body-md text-on-surface-variant line-clamp-2 mb-3">
-          {story.content}
-        </p>
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1 text-label-lg text-on-surface-variant">
-            <Icon name="favorite" className="w-4 h-4" />
-            24
-          </span>
-          <span className="text-label-lg text-primary font-medium">Đọc tiếp →</span>
+    <Card className="p-0 overflow-hidden border-none shadow-xl">
+      <div className="p-6">
+        <div className="flex gap-4">
+          <div className="w-12 h-12 bg-slate-200 rounded-full flex-shrink-0 overflow-hidden">
+            <img
+              src="https://i.pravatar.cc/100?img=1"
+              alt="avatar"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={handleTextareaChange}
+            placeholder="Bạn đang thấy thế nào hôm nay?"
+            className="flex-1 bg-transparent border-none focus:ring-0 text-lg py-2 resize-none h-24 placeholder:text-slate-300 min-h-[60px]"
+            disabled={isSubmitting}
+          />
         </div>
-      </CardContent>
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-50">
+          <div className="flex gap-2">
+            <button className="flex items-center gap-2 px-4 py-2 hover:bg-slate-50 rounded-xl text-slate-500 transition-colors">
+              <ImageIcon size={20} className="text-emerald-500" />
+              <span className="text-xs font-bold">Ảnh/Video</span>
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 hover:bg-slate-50 rounded-xl text-slate-500 transition-colors">
+              <MapPin size={20} className="text-rose-500" />
+              <span className="text-xs font-bold">Địa điểm</span>
+            </button>
+          </div>
+          <Button
+            onClick={handleSubmit}
+            disabled={!content.trim() || isSubmitting}
+            className="bg-primary text-white font-bold px-8 py-2.5 rounded-xl text-sm shadow-lg shadow-primary/20"
+          >
+            {isSubmitting ? "Đang đăng..." : "Đăng bài"}
+          </Button>
+        </div>
+      </div>
+      {showSuccess && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full shadow-lg animate-pulse">
+          Đăng bài thành công!
+        </div>
+      )}
     </Card>
   );
 }
 
-// Quick Note Card - secondary-container, rounded-3xl
-function QuickNoteCard() {
-  return (
-    <div className="p-4 rounded-3xl bg-secondary-container text-on-secondary-container">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon name="edit" className="w-5 h-5" />
-        <span className="text-label-lg font-medium">Ghi chú nhanh</span>
-      </div>
-      <p className="text-body-md italic text-on-secondary-container/80">
-        Đi bộ 15 phút sau bữa tối...
-      </p>
-    </div>
-  );
-}
+// Post Card Component
+function PostCard({ story }: { story: Story }) {
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(story.likes_count || 0);
 
-// Memorial Tabs - segmented control, rounded-full
-function MemorialTabs({
-  activeTab,
-  onChange,
-}: {
-  activeTab: TabType;
-  onChange: (tab: TabType) => void;
-}) {
-  const tabs = [
-    { value: "photos", label: "Ảnh", icon: "photo_library" },
-    { value: "quotes", label: "Lời nói", icon: "format_quote" },
-    { value: "stories", label: "Kỷ niệm", icon: "auto_stories" },
-  ] as const;
+  const handleLike = () => {
+    setLiked(!liked);
+    setLikesCount(liked ? likesCount - 1 : likesCount + 1);
+  };
 
   return (
-    <div className="flex gap-2 p-1 rounded-full bg-surface-container">
-      {tabs.map((tab) => (
-        <button
-          key={tab.value}
-          onClick={() => onChange(tab.value)}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-1 py-2 px-4 rounded-full min-h-touch-target",
-            "transition-colors duration-200",
-            activeTab === tab.value
-              ? "bg-primary text-on-primary shadow-sm"
-              : "text-on-surface-variant hover:text-on-surface"
-          )}
-        >
-          <Icon name={tab.icon} className="w-5 h-5" />
-          <span className="text-label-lg">{tab.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// Photo Gallery - 3 columns, rounded-2xl
-function PhotoGallery({ photos }: { photos: MemorialPhoto[] }) {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {photos.map((photo) => (
-        <div
-          key={photo.id}
-          className="relative aspect-square rounded-2xl overflow-hidden bg-surface-container"
-        >
-          <img
-            src={photo.image_url}
-            alt={photo.title}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
-            <div className="text-body-sm text-white font-medium truncate">
-              {photo.title}
-            </div>
+    <Card className="p-0 overflow-hidden border-none shadow-xl">
+      {/* Header */}
+      <div className="p-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+            <img
+              src={story.user_avatar || "https://i.pravatar.cc/100?img=1"}
+              alt={story.user_name || "User"}
+              className="w-full h-full object-cover"
+            />
           </div>
-        </div>
-      ))}
-      <button className="aspect-square rounded-2xl border-2 border-dashed border-outline flex flex-col items-center justify-center gap-2 hover:bg-surface-container transition-colors">
-        <Icon name="add_photo_alternate" className="w-8 h-8 text-on-surface-variant" />
-        <span className="text-body-sm text-on-surface-variant">Tải ảnh</span>
-      </button>
-    </div>
-  );
-}
-
-// Quote List
-function QuoteList({ quotes }: { quotes: MemorialQuote[] }) {
-  return (
-    <div className="space-y-3">
-      {quotes.map((quote) => (
-        <div
-          key={quote.id}
-          className="p-4 rounded-2xl bg-surface-container border-l-4 border-tertiary"
-        >
-          <div className="text-body-lg text-on-surface italic mb-2">
-            "{quote.content}"
-          </div>
-          {quote.author && (
-            <div className="text-label-lg text-on-surface-variant">
-              — {quote.author}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Story List
-function StoryList({ stories }: { stories: MemorialStory[] }) {
-  return (
-    <div className="space-y-3">
-      {stories.map((story) => (
-        <Card key={story.id} variant="default" className="w-full rounded-2xl">
-          <CardContent className="pt-4">
-            <h3 className="text-body-lg font-semibold text-on-surface mb-2">
-              {story.title}
-            </h3>
-            <p className="text-body-md text-on-surface-variant line-clamp-3">
-              {story.content}
+          <div>
+            <h4 className="font-bold text-slate-800">
+              {story.user_name || "Người dùng"}
+            </h4>
+            <p className="text-xs text-slate-400 font-medium">
+              {formatRelativeTime(story.created_at)}
+              {story.location && ` • ${story.location}`}
             </p>
-            <div className="text-label-lg text-on-surface-variant mt-2">
-              {new Date(story.created_at).toLocaleDateString("vi-VN", {
-                day: "numeric",
-                month: "numeric",
-                year: "numeric",
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+          </div>
+        </div>
+        <button className="text-slate-300 hover:text-slate-600">
+          <MoreVertical size={20} />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="px-6 pb-4">
+        <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+          {story.content}
+        </p>
+      </div>
+
+      {/* Image */}
+      {story.image_url && (
+        <div className="px-1 overflow-hidden">
+          <img
+            src={story.image_url}
+            className="w-full aspect-[4/3] object-cover rounded-3xl"
+            alt="post"
+          />
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="p-6 flex items-center justify-between border-t border-slate-50 mt-4">
+        <div className="flex gap-6">
+          <button
+            onClick={handleLike}
+            className={cn(
+              "flex items-center gap-2 transition-colors group",
+              liked ? "text-rose-500" : "text-slate-400 hover:text-rose-500"
+            )}
+          >
+            <Heart
+              size={20}
+              className={cn(liked && "fill-rose-500")}
+            />
+            <span className="text-xs font-bold">{likesCount}</span>
+          </button>
+          <button className="flex items-center gap-2 text-slate-400 hover:text-primary transition-colors">
+            <MessageSquare size={20} />
+            <span className="text-xs font-bold">{story.comments_count || 0}</span>
+          </button>
+        </div>
+        <button className="text-slate-300 hover:text-slate-600">
+          <Share2 size={20} />
+        </button>
+      </div>
+    </Card>
   );
 }
 
 // Main Page Component
 export default function MemoryPage() {
-  const [activeTab, setActiveTab] = useState<TabType>("photos");
-  const [photos, setPhotos] = useState<MemorialPhoto[]>([]);
-  const [quotes, setQuotes] = useState<MemorialQuote[]>([]);
-  const [stories, setStories] = useState<MemorialStory[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch stories from API
+  const fetchStories = async () => {
+    try {
+      const response = await fetch("/api/memorial/stories");
+      const data = await response.json();
+      if (data.success && data.data?.stories) {
+        setStories(data.data.stories);
+      }
+    } catch (error) {
+      console.error("Failed to fetch stories:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setTimeout(() => {
-      setPhotos(generateMockPhotos());
-      setQuotes(generateMockQuotes());
-      setStories(generateMockStories());
-      setLoading(false);
-    }, 300);
+    fetchStories();
   }, []);
+
+  // Handle new post submission
+  const handleSubmit = async (content: string) => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/memorial/stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: content.substring(0, 50),
+          content,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success && data.data) {
+        setStories((prev) => [data.data, ...prev]);
+      }
+    } catch (error) {
+      console.error("Failed to create story:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <Page title="Memory">
-      <div className="p-6 space-y-4">
-        {/* Memory Banner */}
-        <MemoryBanner />
-
-        {/* Featured Story */}
-        {stories.length > 0 && <FeaturedStoryCard story={stories[0]} />}
-
-        {/* Quick Note */}
-        <QuickNoteCard />
-
-        {/* Memorial Tabs */}
-        <MemorialTabs activeTab={activeTab} onChange={setActiveTab} />
-
-        {/* Tab Content */}
-        {!loading && (
-          <>
-            {activeTab === "photos" && <PhotoGallery photos={photos} />}
-            {activeTab === "quotes" && <QuoteList quotes={quotes} />}
-            {activeTab === "stories" && <StoryList stories={stories} />}
-          </>
-        )}
-
-        {loading && (
-          <div className="text-center py-12 text-on-surface-variant">
-            Đang tải...
+      <div className="p-6 lg:p-10 space-y-10 max-w-4xl mx-auto pb-20">
+        {/* Header */}
+        <header className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
+              Blog&apos;s
+            </h1>
+            <p className="text-slate-500 mt-1">
+              Lưu giữ khoảnh khắc và hành trình sống khỏe của bạn.
+            </p>
           </div>
-        )}
+          <button className="w-14 h-14 bg-primary text-white rounded-full flex items-center justify-center shadow-2xl shadow-primary/30 hover:scale-110 transition-transform active:scale-95">
+            <Plus size={28} />
+          </button>
+        </header>
+
+        {/* Post Composer */}
+        <PostComposer onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+
+        {/* Feed */}
+        <div className="space-y-10">
+          {loading ? (
+            <div className="text-center py-12 text-slate-500">Đang tải...</div>
+          ) : stories.length === 0 ? (
+            <div className="text-center py-12 text-slate-500">
+              <p>Chưa có bài viết nào.</p>
+              <p className="text-sm mt-2">Hãy chia sẻ khoảnh khắc đầu tiên của bạn!</p>
+            </div>
+          ) : (
+            stories.map((story) => <PostCard key={story.id} story={story} />)
+          )}
+        </div>
       </div>
     </Page>
   );

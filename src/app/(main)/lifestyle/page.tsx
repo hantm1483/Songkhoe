@@ -1,14 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Page } from "@/components/layout/page";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
 
-// Mock data
+// Fetch lifestyle content from Supabase
+async function fetchLifestyleArticles() {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("articles")
+    .select("id, title, category, content, image_url, created_at")
+    .eq("category", "lifestyle")
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (error) {
+    console.error("Error fetching lifestyle articles:", error);
+    return [];
+  }
+  return data || [];
+}
+
+async function fetchCommunityStats() {
+  const supabase = createClient();
+  const { count: memberCount, error } = await supabase
+    .from("profiles")
+    .select("*", { count: "exact", head: true });
+
+  if (error) {
+    console.error("Error fetching community stats:", error);
+    return 2541;
+  }
+  return memberCount || 2541;
+}
+
+// Tags for community
 const TAGS = [
   "#yoga_sang",
   "#meditation",
@@ -46,6 +77,13 @@ const TOPICS = [
 
 // Topic Card
 function TopicCard({ topic, index }: { topic: typeof TOPICS[0]; index: number }) {
+  const colorMap: Record<string, { bg: string; text: string; bgHover: string; textHover: string }> = {
+    bedtime: { bg: "bg-indigo-100", text: "text-indigo-600", bgHover: "hover:bg-indigo-50", textHover: "text-indigo-600" },
+    air: { bg: "bg-emerald-100", text: "text-emerald-600", bgHover: "hover:bg-emerald-50", textHover: "text-emerald-600" },
+    mood: { bg: "bg-amber-100", text: "text-amber-600", bgHover: "hover:bg-amber-50", textHover: "text-amber-600" },
+  };
+  const colors = colorMap[topic.icon] || colorMap.mood;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -53,12 +91,13 @@ function TopicCard({ topic, index }: { topic: typeof TOPICS[0]; index: number })
       transition={{ delay: index * 0.1 }}
     >
       <Card className={cn(
-        "flex flex-col gap-6 group border-none shadow-xl hover:shadow-2xl transition-all duration-300 p-6",
-        topic.colorHover
+        "flex flex-col gap-6 group border-none shadow-xl hover:shadow-2xl transition-all duration-300 p-6 cursor-pointer",
+        colors.bgHover
       )}>
         <div className={cn(
           "w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all",
-          topic.color
+          colors.bg,
+          colors.text
         )}>
           <Icon name={topic.icon} className="w-8 h-8" />
         </div>
@@ -66,7 +105,7 @@ function TopicCard({ topic, index }: { topic: typeof TOPICS[0]; index: number })
           <h3 className="text-xl font-bold text-slate-800 mb-2">{topic.title}</h3>
           <p className="text-sm text-slate-500 leading-relaxed">{topic.description}</p>
         </div>
-        <button className="mt-auto flex items-center gap-2 text-sm font-bold text-indigo-600 group-hover:text-inherit">
+        <button className={cn("mt-auto flex items-center gap-2 text-sm font-bold", colors.textHover)}>
           Tìm hiểu thêm <Icon name="arrow_forward" className="w-4 h-4" />
         </button>
       </Card>
@@ -76,6 +115,34 @@ function TopicCard({ topic, index }: { topic: typeof TOPICS[0]; index: number })
 
 // Main Page Component
 export default function LifestylePage() {
+  const [articles, setArticles] = useState<Array<{id: string; title: string; content: string; image_url?: string}>>([]);
+  const [memberCount, setMemberCount] = useState(2541);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [articlesData, communityCount] = await Promise.all([
+          fetchLifestyleArticles(),
+          fetchCommunityStats()
+        ]);
+        setArticles(articlesData);
+        setMemberCount(communityCount);
+      } catch (error) {
+        console.error("Error loading lifestyle data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  // Get featured video from first lifestyle article if available, otherwise use default
+  const featuredArticle = articles[0];
+  const defaultVideoImage = "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=1400";
+  const videoImage = featuredArticle?.image_url || defaultVideoImage;
+  const videoTitle = featuredArticle?.title || "Cân bằng đường huyết với chuỗi bài Yoga 15 phút buổi sáng";
+
   return (
     <Page title="Lối sống lành mạnh">
       <div className="p-6 lg:p-10 space-y-10 max-w-7xl mx-auto">
@@ -97,7 +164,7 @@ export default function LifestylePage() {
         <section>
           <div className="group relative rounded-[40px] overflow-hidden aspect-video lg:h-[450px] bg-slate-200 shadow-2xl shadow-slate-200">
             <img
-              src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=1400"
+              src={videoImage}
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               alt="Yoga class"
             />
@@ -107,7 +174,7 @@ export default function LifestylePage() {
                 <span className="text-white/60 text-sm font-medium">15:20 • Đã xem 12.5k lần</span>
               </div>
               <h2 className="text-4xl font-black text-white mb-6 max-w-2xl leading-tight">
-                Cân bằng đường huyết <br />với chuỗi bài Yoga 15 phút buổi sáng
+                {videoTitle}
               </h2>
               <div className="flex items-center gap-6">
                 <button className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-primary shadow-2xl hover:scale-110 transition-transform">
@@ -164,7 +231,7 @@ export default function LifestylePage() {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-800">Nhóm GlucoFriends</p>
-                    <p className="text-xs text-slate-500">2,541 thành viên</p>
+                    <p className="text-xs text-slate-500">{memberCount.toLocaleString()} thành viên</p>
                   </div>
                 </div>
                 <button className="w-full py-3 bg-primary text-white rounded-2xl font-bold text-sm shadow-lg shadow-primary/20">

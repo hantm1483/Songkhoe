@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Page } from "@/components/layout/page";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -19,71 +20,33 @@ import {
 // Types
 interface LabResult {
   id: string;
-  name: string;
+  type: "hba1c" | "cholesterol" | "creatinine" | "other";
   value: number;
-  unit: string;
-  type: "hba1c" | "cholesterol" | "creatinine";
-  date: string;
-  reference_min: number;
-  reference_max: number;
+  unit: string | null;
+  recorded_at: string;
+  notes: string | null;
+  created_at: string;
 }
 
-// Generate mock lab results
-function generateMockLabResults(): LabResult[] {
-  return [
-    // HbA1c - target < 7%
-    {
-      id: "1",
-      name: "HbA1c",
-      value: 6.8,
-      unit: "%",
-      type: "hba1c",
-      date: new Date(-30 * 24 * 60 * 60 * 1000).toISOString(),
-      reference_min: 4.0,
-      reference_max: 7.0,
-    },
-    {
-      id: "2",
-      name: "HbA1c",
-      value: 7.2,
-      unit: "%",
-      type: "hba1c",
-      date: new Date(-60 * 24 * 60 * 60 * 1000).toISOString(),
-      reference_min: 4.0,
-      reference_max: 7.0,
-    },
-    // Cholesterol - target < 200 mg/dL
-    {
-      id: "4",
-      name: "Cholesterol",
-      value: 185,
-      unit: "mg/dL",
-      type: "cholesterol",
-      date: new Date(-30 * 24 * 60 * 60 * 1000).toISOString(),
-      reference_min: 0,
-      reference_max: 200,
-    },
-    // Creatinine - normal range 0.7-1.3 mg/dL
-    {
-      id: "7",
-      name: "Creatinine",
-      value: 1.0,
-      unit: "mg/dL",
-      type: "creatinine",
-      date: new Date(-30 * 24 * 60 * 60 * 1000).toISOString(),
-      reference_min: 0.7,
-      reference_max: 1.3,
-    },
-  ];
-}
-
-function getStatus(value: number, min: number, max: number): "normal" | "high" | "low" {
-  if (value < min) return "low";
-  if (value > max) return "high";
+function getStatus(value: number, type: string): "normal" | "high" | "low" {
+  if (type === "hba1c") {
+    if (value < 4.0) return "low";
+    if (value > 7.0) return "high";
+    return "normal";
+  }
+  if (type === "cholesterol") {
+    if (value > 200) return "high";
+    return "normal";
+  }
+  if (type === "creatinine") {
+    if (value < 0.7) return "low";
+    if (value > 1.3) return "high";
+    return "normal";
+  }
   return "normal";
 }
 
-// Lab Type Tabs - segmented control, rounded-full
+// Lab Type Tabs
 function LabTypeTabs({
   activeType,
   onChange,
@@ -119,16 +82,16 @@ function LabTypeTabs({
   );
 }
 
-// Lab Result Card - surface-container-lowest, rounded-2xl
+// Lab Result Card
 function LabResultCard({ result }: { result: LabResult }) {
-  const status = getStatus(result.value, result.reference_min, result.reference_max);
+  const status = getStatus(result.value, result.type);
 
   return (
     <Card variant="elevated" className="w-full rounded-2xl">
       <CardContent className="pt-4">
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-body-lg text-on-surface-variant">{result.name}</h3>
+            <h3 className="text-body-lg text-on-surface-variant">{result.type.toUpperCase()}</h3>
             <div className="flex items-baseline gap-1 mt-1">
               <span
                 className={cn(
@@ -140,11 +103,8 @@ function LabResultCard({ result }: { result: LabResult }) {
                 {result.value}
               </span>
               <span className="text-body-md text-on-surface-variant">
-                {result.unit}
+                {result.unit || ""}
               </span>
-            </div>
-            <div className="text-label-lg text-on-surface-variant mt-1">
-              Mục tiêu: {result.reference_min}-{result.reference_max}
             </div>
           </div>
           <Badge
@@ -155,7 +115,7 @@ function LabResultCard({ result }: { result: LabResult }) {
         </div>
         <div className="text-label-lg text-on-surface-variant mt-2 flex items-center gap-1">
           <Icon name="event" className="w-4 h-4" />
-          {new Date(result.date).toLocaleDateString("vi-VN", {
+          {new Date(result.recorded_at).toLocaleDateString("vi-VN", {
             day: "numeric",
             month: "numeric",
             year: "numeric",
@@ -166,7 +126,7 @@ function LabResultCard({ result }: { result: LabResult }) {
   );
 }
 
-// Trend Chart with chart-grid background
+// Trend Chart
 function LabTrendChart({
   results,
   type,
@@ -176,24 +136,25 @@ function LabTrendChart({
 }) {
   const filteredResults = results
     .filter((r) => r.type === type)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
 
   const data = filteredResults.map((r) => ({
-    date: new Date(r.date).toLocaleDateString("vi-VN", {
+    date: new Date(r.recorded_at).toLocaleDateString("vi-VN", {
       day: "numeric",
       month: "short",
     }),
     value: r.value,
-    refMin: r.reference_min,
-    refMax: r.reference_max,
+    refMin: type === "hba1c" ? 4.0 : type === "creatinine" ? 0.7 : 0,
+    refMax: type === "hba1c" ? 7.0 : type === "cholesterol" ? 200 : 1.3,
   }));
 
   if (data.length < 2) return null;
 
   const Colors: Record<LabResult["type"], string> = {
-    hba1c: "#006262",
+    hba1c: "#008B8B",
     cholesterol: "#136299",
     creatinine: "#943b23",
+    other: "#6f7979",
   };
 
   return (
@@ -220,7 +181,7 @@ function LabTrendChart({
                     <p
                       className={cn(
                         "text-body-lg font-semibold",
-                        getStatus(data.value, data.refMin, data.refMax) === "normal"
+                        getStatus(data.value, type) === "normal"
                           ? "text-primary"
                           : "text-error"
                       )}
@@ -253,13 +214,30 @@ export default function XetNghiemPage() {
   const [activeType, setActiveType] = useState<"hba1c" | "cholesterol" | "creatinine">("hba1c");
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
+  const supabase = createClient();
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("lab_results")
+        .select("*")
+        .order("recorded_at", { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setResults(data || []);
+    } catch (err) {
+      console.error("Fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase]);
 
   useEffect(() => {
-    setTimeout(() => {
-      setResults(generateMockLabResults());
-      setLoading(false);
-    }, 300);
-  }, []);
+    fetchData();
+  }, [fetchData]);
 
   const currentResults = results.filter((r) => r.type === activeType);
 

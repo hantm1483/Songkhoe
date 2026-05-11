@@ -142,6 +142,7 @@ export interface MealInput {
   giLevel?: GiLevel;
   notes?: string;
   time?: string;
+  date?: string;
 }
 
 export function validateMealInput(data: unknown): {
@@ -177,6 +178,10 @@ export function validateMealInput(data: unknown): {
     return { success: false, error: "Thời gian không hợp lệ" };
   }
 
+  if (input.date !== undefined && typeof input.date !== "string") {
+    return { success: false, error: "Ngày không hợp lệ" };
+  }
+
   return {
     success: true,
     data: {
@@ -184,6 +189,7 @@ export function validateMealInput(data: unknown): {
       giLevel: input.giLevel as GiLevel | undefined,
       notes: input.notes as string | undefined,
       time: input.time as string | undefined,
+      date: input.date as string | undefined,
     },
   };
 }

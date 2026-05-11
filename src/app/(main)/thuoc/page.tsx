@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Page } from "@/components/layout/page";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 // Types
 interface Medication {
   id: string;
   name: string;
-  dosage: string;
-  schedule_time: "morning" | "evening";
-  taken: boolean;
+  dosage: string | null;
+  schedule_time: string | null;
+  frequency: string | null;
+  created_at: string;
 }
 
 interface ScheduleItem {
@@ -26,15 +28,6 @@ interface MealSuggestion {
   name: string;
   gi: "low" | "medium" | "high";
   icon: string;
-}
-
-// Generate mock medications
-function generateMockMedications(): Medication[] {
-  return [
-    { id: "1", name: "Metformin", dosage: "500mg", schedule_time: "morning", taken: false },
-    { id: "2", name: "Gliclazide", dosage: "80mg", schedule_time: "morning", taken: false },
-    { id: "3", name: "Metformin", dosage: "500mg", schedule_time: "evening", taken: false },
-  ];
 }
 
 // Schedule timeline data
@@ -88,7 +81,7 @@ function WelcomeCard() {
   );
 }
 
-// Schedule Timeline with border-l-2
+// Schedule Timeline
 function ScheduleTimeline() {
   return (
     <Card variant="elevated" className="w-full rounded-2xl">
@@ -121,7 +114,7 @@ function ScheduleTimeline() {
   );
 }
 
-// Medication Item - rounded-xl
+// Medication Item
 function MedicationItem({
   medication,
   onToggle,
@@ -129,48 +122,37 @@ function MedicationItem({
   medication: Medication;
   onToggle: (id: string) => void;
 }) {
+  const isMorning = medication.schedule_time?.includes("morning") || medication.schedule_time === "07:00";
+
   return (
     <button
       onClick={() => onToggle(medication.id)}
       className={cn(
         "w-full flex items-center justify-between p-4 rounded-xl",
-        "bg-surface-container-lowest border border-outline-variant",
-        medication.taken && "bg-primary-container/30 border-primary"
+        "bg-surface-container-lowest border border-outline-variant"
       )}
     >
       <div className="flex items-center gap-3">
-        <div
-          className={cn(
-            "w-6 h-6 rounded-full border-2 flex items-center justify-center",
-            medication.taken
-              ? "bg-primary border-primary"
-              : "border-outline"
-          )}
-        >
-          {medication.taken && (
-            <Icon name="check" className="w-4 h-4 text-on-primary" />
-          )}
+        <div className="w-6 h-6 rounded-full border-2 border-outline flex items-center justify-center">
+          <Icon name="check" className="w-4 h-4 text-transparent" />
         </div>
         <div className="text-left">
-          <div className={cn(
-            "text-body-lg",
-            medication.taken && "line-through text-on-surface-variant"
-          )}>
+          <div className="text-body-lg text-on-surface">
             {medication.name}
           </div>
           <div className="text-label-lg text-on-surface-variant">
-            {medication.dosage}
+            {medication.dosage || "Liều thường"}
           </div>
         </div>
       </div>
       <span className="text-label-lg text-on-surface-variant">
-        {medication.schedule_time === "morning" ? "Sáng" : "Tối"}
+        {isMorning ? "Sáng" : "Tối"}
       </span>
     </button>
   );
 }
 
-// Meal Suggestion Card - rounded-2xl
+// Meal Suggestion Card
 function MealSuggestionCard({ suggestion }: { suggestion: MealSuggestion }) {
   return (
     <div className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant">
@@ -191,15 +173,37 @@ function MealSuggestionCard({ suggestion }: { suggestion: MealSuggestion }) {
 // Main Page Component
 export default function ThuocPage() {
   const [medications, setMedications] = useState<Medication[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("medications")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (fetchError) throw fetchError;
+      setMedications(data || []);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setError("Không thể tải dữ liệu");
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase]);
 
   useEffect(() => {
-    setMedications(generateMockMedications());
-  }, []);
+    fetchData();
+  }, [fetchData]);
 
   const handleToggleTaken = (id: string) => {
-    setMedications((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, taken: !m.taken } : m))
-    );
+    // TODO: Log medication taken
+    console.log("Toggle medication:", id);
   };
 
   return (
@@ -214,15 +218,23 @@ export default function ThuocPage() {
         {/* Medication Checklist */}
         <div>
           <h2 className="text-headline-md text-on-surface mb-3">Thuốc hôm nay</h2>
-          <div className="space-y-2">
-            {medications.map((med) => (
-              <MedicationItem
-                key={med.id}
-                medication={med}
-                onToggle={handleToggleTaken}
-              />
-            ))}
-          </div>
+          {!loading && medications.length > 0 ? (
+            <div className="space-y-2">
+              {medications.map((med) => (
+                <MedicationItem
+                  key={med.id}
+                  medication={med}
+                  onToggle={handleToggleTaken}
+                />
+              ))}
+            </div>
+          ) : loading ? (
+            <div className="text-center py-8 text-on-surface-variant">Đang tải...</div>
+          ) : (
+            <div className="text-center py-8 text-on-surface-variant">
+              Chưa có thuốc nào
+            </div>
+          )}
         </div>
 
         {/* Meal Suggestions */}
