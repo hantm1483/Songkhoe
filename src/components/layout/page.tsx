@@ -1,42 +1,49 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { cn } from "@/lib/utils";
-import { BottomNav } from "./bottom-nav";
-import { Sidebar } from "@/components/layout/sidebar";
+import { MobileHeader } from "./sidebar";
+import { FooterSummary } from "./footer-summary";
 
 interface PageProps {
   title?: string;
   children: ReactNode;
-  showBottomNav?: boolean;
-  showSidebar?: boolean;
-  right?: ReactNode;
+  showMobileHeader?: boolean;
+  showFooter?: boolean;
   className?: string;
 }
 
-export const Page = ({
+export function Page({
   title,
   children,
-  showBottomNav = true,
-  showSidebar = true,
-  right,
+  showMobileHeader = true,
+  showFooter = true,
   className,
-}: PageProps) => {
-  return (
-    <div className="min-h-screen bg-[#FDFCFB] flex flex-col">
-      {/* Desktop Sidebar */}
-      {showSidebar && <Sidebar />}
+}: PageProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-      {/* Main Content - no max-width constraint so children can use max-w-7xl */}
+  return (
+    <div className="min-h-screen bg-natural-bg text-natural-text antialiased font-sans selection:bg-natural-soft">
+      {/* Mobile Header with hamburger menu */}
+      {showMobileHeader && (
+        <MobileHeader
+          isOpen={isMobileMenuOpen}
+          onToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        />
+      )}
+
+      {/* Main Content - Desktop: lg:pl-64 for sidebar offset */}
       <main
         className={cn(
-          "flex-1 w-full",
+          "lg:pl-64",
           className
         )}
       >
-        {children}
-      </main>
+        <div className="mx-auto max-w-[1700px] px-4 py-10 sm:px-8 lg:px-12">
+          {children}
+        </div>
 
-      {/* Bottom Navigation - Mobile only */}
-      {showBottomNav && <BottomNav />}
+        {/* Footer Summary */}
+        {showFooter && <FooterSummary />}
+      </main>
     </div>
   );
-};
+}

@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS public.lab_results (
 DROP TABLE IF EXISTS public.articles CASCADE;
 CREATE TABLE IF NOT EXISTS public.articles (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID, -- For RLS, link to auth.users
   title TEXT NOT NULL,
   category TEXT,
   content TEXT,
@@ -211,6 +212,55 @@ CREATE TABLE IF NOT EXISTS public.rate_limits (
 );
 
 -- ============================================
+-- HEALTH EVENTS (Nhật ký sức khỏe - Events diary)
+-- ============================================
+DROP TABLE IF EXISTS public.health_events CASCADE;
+CREATE TABLE IF NOT EXISTS public.health_events (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID,
+  event_type TEXT CHECK (event_type IN ('Theo dõi', 'Biến cố')),
+  title TEXT NOT NULL,
+  event_date DATE NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- ACTIVITY SCHEDULES (Lịch tập luyện)
+-- ============================================
+DROP TABLE IF EXISTS public.activity_schedules CASCADE;
+CREATE TABLE IF NOT EXISTS public.activity_schedules (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID,
+  activity_name TEXT NOT NULL,
+  scheduled_date DATE NOT NULL,
+  scheduled_time TIME WITHOUT TIME ZONE,
+  duration_minutes INTEGER DEFAULT 30,
+  calories_burned INTEGER,
+  completed BOOLEAN DEFAULT FALSE,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- BODY METRICS (Chỉ số cơ thể - Cân nặng, Huyết áp)
+-- ============================================
+DROP TABLE IF EXISTS public.body_metrics CASCADE;
+CREATE TABLE IF NOT EXISTS public.body_metrics (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID,
+  record_date DATE NOT NULL,
+  weight_kg DECIMAL(5,2),
+  blood_pressure_systolic INTEGER,
+  blood_pressure_diastolic INTEGER,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
 
@@ -316,6 +366,24 @@ CREATE POLICY "Anyone can insert articles" ON public.articles FOR INSERT WITH CH
 CREATE POLICY "Anyone can update articles" ON public.articles FOR UPDATE USING (auth.uid() IS NOT NULL);
 CREATE POLICY "Anyone can delete articles" ON public.articles FOR DELETE USING (auth.uid() IS NOT NULL);
 
+-- Health Events: Users can CRUD own events
+CREATE POLICY "Users can view own health events" ON public.health_events FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own health events" ON public.health_events FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own health events" ON public.health_events FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own health events" ON public.health_events FOR DELETE USING (auth.uid() = user_id);
+
+-- Activity Schedules: Users can CRUD own schedules
+CREATE POLICY "Users can view own activity schedules" ON public.activity_schedules FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own activity schedules" ON public.activity_schedules FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own activity schedules" ON public.activity_schedules FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own activity schedules" ON public.activity_schedules FOR DELETE USING (auth.uid() = user_id);
+
+-- Body Metrics: Users can CRUD own metrics
+CREATE POLICY "Users can view own body metrics" ON public.body_metrics FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own body metrics" ON public.body_metrics FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own body metrics" ON public.body_metrics FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own body metrics" ON public.body_metrics FOR DELETE USING (auth.uid() = user_id);
+
 -- ============================================
 -- INDEXES
 -- ============================================
@@ -326,8 +394,14 @@ CREATE INDEX IF NOT EXISTS idx_meals_user_id ON public.meals(user_id);
 CREATE INDEX IF NOT EXISTS idx_lab_results_user_id ON public.lab_results(user_id);
 CREATE INDEX IF NOT EXISTS idx_lab_results_type ON public.lab_results(type);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_health_events_user ON public.health_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_health_events_date ON public.health_events(event_date DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_schedules_user ON public.activity_schedules(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_schedules_date ON public.activity_schedules(scheduled_date DESC);
+CREATE INDEX IF NOT EXISTS idx_body_metrics_user ON public.body_metrics(user_id);
+CREATE INDEX IF NOT EXISTS idx_body_metrics_date ON public.body_metrics(record_date DESC);
 
 -- ============================================
 -- COMPLETION MESSAGE
 -- ============================================
-SELECT 'Schema created successfully! Tables: profiles, glucose_logs, medications, medication_logs, meals, lab_results, articles, memorial_photos, memorial_quotes, memorial_stories, conversations, messages, push_subscriptions, notification_schedules, rate_limits' as status;
+SELECT 'Schema created successfully! Tables: profiles, glucose_logs, medications, medication_logs, meals, lab_results, articles, memorial_photos, memorial_quotes, memorial_stories, conversations, messages, push_subscriptions, notification_schedules, rate_limits, health_events, activity_schedules, body_metrics' as status;
