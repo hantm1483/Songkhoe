@@ -13,8 +13,11 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@ai-sdk/react": "^3.0.179",
+    "@anthropic-ai/sdk": "^0.95.2",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.39.0",
+    "ai": "^6.0.177",
     "date-fns": "^3.0.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^0.460.0",

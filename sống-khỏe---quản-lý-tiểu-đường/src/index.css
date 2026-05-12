@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  /* Natural Tones Theme Colors */
+  --color-natural-bg: #F9F7F2;
+  --color-natural-text: #4A4F41;
+  --color-natural-primary: #8BA888;
+  --color-natural-primary-dark: #5C6E5A;
+  --color-natural-border: #E6E2D3;
+  --color-natural-accent: #BC4749;
+  --color-natural-soft: #E9EDC9;
+  --color-natural-soft-dark: #CCD5AE;
+  --color-natural-beige: #F2E8CF;
+  --color-natural-light: #F0F4EF;
+}
+
+body {
+  @apply bg-natural-bg text-natural-text antialiased;
+}

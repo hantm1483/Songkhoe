@@ -4,10 +4,22 @@
 
 @layer base {
   :root {
-    --color-primary: #008B8B;
+    /* Sống Khỏe - Natural Tones Theme */
+    --color-natural-bg: #F9F7F2;
+    --color-natural-text: #4A4F41;
+    --color-natural-primary: #8BA888;
+    --color-natural-primary-dark: #5C6E5A;
+    --color-natural-border: #E6E2D3;
+    --color-natural-accent: #BC4749;
+    --color-natural-soft: #E9EDC9;
+    --color-natural-soft-dark: #CCD5AE;
+    --color-natural-beige: #F2E8CF;
+    --color-natural-light: #F0F4EF;
+    /* Legacy colors */
+    --color-primary: #006262;
     --color-secondary: #00A8A8;
     --color-accent: #FF7F50;
-    --color-bg-warm: #FDFCFB;
+    --color-bg-warm: #F9F7F2;
   }
 
   html {
@@ -15,7 +27,7 @@
   }
 
   body {
-    @apply bg-[#FDFCFB] text-slate-800 font-sans antialiased;
+    @apply bg-natural-bg text-natural-text antialiased;
   }
 }
 
@@ -28,11 +40,54 @@
     @apply bg-primary hover:bg-secondary text-white px-6 py-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg active:scale-95;
   }
 
+  .natural-button {
+    @apply bg-natural-primary hover:bg-natural-primary-dark text-white px-6 py-3 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98];
+  }
+
+  .natural-card {
+    @apply bg-white rounded-[32px] border border-natural-border shadow-sm p-6 sm:p-8;
+  }
+
+  .natural-card-hover {
+    @apply bg-white rounded-[32px] border border-natural-border shadow-sm p-6 sm:p-8 hover:shadow-xl hover:-translate-y-1 transition-all duration-300;
+  }
+
   .nav-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-slate-500 hover:bg-primary/10 hover:text-primary cursor-pointer;
+    @apply flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 text-slate-500 hover:bg-natural-light hover:text-natural-primary-dark cursor-pointer;
   }
 
   .nav-item-active {
-    @apply bg-primary text-white shadow-lg shadow-primary/30;
+    @apply bg-natural-primary text-white shadow-lg shadow-natural-primary/30;
+  }
+
+  .natural-input {
+    @apply w-full rounded-2xl border border-natural-border bg-natural-light/50 p-4 text-sm font-bold text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none transition-all focus:bg-white;
+  }
+
+  .natural-label {
+    @apply text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1 block;
+  }
+
+  .section-title {
+    @apply text-xl font-black text-natural-primary-dark uppercase tracking-widest;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.natural.border') transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: theme('colors.natural.border');
+    border-radius: 9999px;
   }
 }

@@ -1,8 +1,8 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Empathetic Tribute Design System
- * Colors, typography, and spacing from design/extracted
+ * Sống Khỏe Design System
+ * Natural Tones theme from sống-khỏe---quản-lý-tiểu-đường
  */
 const config: Config = {
   content: [
@@ -13,7 +13,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Empathetic Tribute - Primary (Warm Teal)
+        // Sống Khỏe - Natural Tones Theme
+        natural: {
+          bg: "#F9F7F2",
+          text: "#4A4F41",
+          primary: "#8BA888",
+          "primary-dark": "#5C6E5A",
+          border: "#E6E2D3",
+          accent: "#BC4749",
+          soft: "#E9EDC9",
+          "soft-dark": "#CCD5AE",
+          beige: "#F2E8CF",
+          light: "#F0F4EF",
+        },
+        // Legacy Empathetic Tribute colors (keeping for backward compat)
         primary: {
           DEFAULT: "#006262",
           container: "#2a7b7b",
@@ -27,7 +40,6 @@ const config: Config = {
         "on-primary-fixed": "#002020",
         "on-primary-fixed-variant": "#004f50",
 
-        // Empathetic Tribute - Secondary (Gentle Blue)
         secondary: {
           DEFAULT: "#136299",
           container: "#82c1fd",
@@ -39,7 +51,6 @@ const config: Config = {
         "on-secondary-fixed": "#001d33",
         "on-secondary-fixed-variant": "#004a77",
 
-        // Empathetic Tribute - Tertiary (Warm Terracotta for memorial)
         tertiary: {
           DEFAULT: "#943b23",
           container: "#b45238",
@@ -51,7 +62,6 @@ const config: Config = {
         "on-tertiary-fixed": "#3c0800",
         "on-tertiary-fixed-variant": "#7e2b14",
 
-        // Surface System (Soft Cream tones)
         surface: {
           DEFAULT: "#fef8f4",
           dim: "#ded9d5",
@@ -71,11 +81,9 @@ const config: Config = {
         "inverse-surface": "#32302d",
         "inverse-on-surface": "#f5f0eb",
 
-        // Outline
         outline: "#6f7979",
         "outline-variant": "#bec9c8",
 
-        // Error
         error: {
           DEFAULT: "#ba1a1a",
           container: "#ffdad6",
@@ -83,15 +91,12 @@ const config: Config = {
         "on-error": "#ffffff",
         "on-error-container": "#93000a",
 
-        // Background
-        background: "#fef8f4",
+        background: "#F9F7F2",
         "on-background": "#1d1b19",
 
-        // Accent (Coral for GlucoCare compatibility)
-        accent: "#FF7F50",
+        accent: "#BC4749",
 
-        // Legacy support
-        "bg-warm": "#FDFCFB",
+        "bg-warm": "#F9F7F2",
         "surface-tint": "#0d6969",
       },
       fontFamily: {
@@ -130,10 +135,15 @@ const config: Config = {
         lg: "16px",
         xl: "24px",
         "2xl": "32px",
-        "3xl": "48px",
+        "3xl": "40px",
+        "4xl": "48px",
         full: "9999px",
       },
       boxShadow: {
+        // Sống Khỏe Natural Theme Shadows
+        "natural": "0 4px 12px rgba(139, 168, 136, 0.08)",
+        "natural-md": "0 8px 24px rgba(139, 168, 136, 0.12)",
+        "natural-lg": "0 12px 32px rgba(139, 168, 136, 0.16)",
         // Ambient Tinted Shadows (soft, no harsh black)
         "soft-teal": "0 4px 12px rgba(0, 98, 98, 0.08)",
         "soft-primary": "0 4px 12px rgba(0, 98, 98, 0.12)",
