@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ChevronRight, ArrowLeft } from "lucide-react";
@@ -7,6 +8,8 @@ import { Heart, Activity, Sparkles, PenTool, Newspaper, BookOpen, Utensils, Star
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Page } from "@/components/layout/page";
+import { FloatingAISidebar, FloatingSidebarToggle } from "@/components/ai-sidebar/floating-ai-sidebar";
+import { useTextSelection } from "@/hooks/use-text-selection";
 
 // Re-export for backward compatibility
 export { Heart as Icon, Badge, Card };
@@ -42,6 +45,11 @@ export function SectionHeader({ title, showAll = true }: { title: string; showAl
 
 // Dashboard page - EXACT match to GlucoCare Dashboard.tsx
 export default function DashboardPage() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { selectedText } = useTextSelection({ minLength: 2, maxLength: 100 });
+
+  // Sample article content for summarization (in real app, this would come from the page content)
+  const articleContent = "Bài viết về tiểu đường type 2: Tình trạng này xảy ra khi cơ thể không sản xuất đủ insulin hoặc không sử dụng insulin hiệu quả. Triệu chứng bao gồm khát nhiều, đi tiểu thường xuyên, mờ mắt và mệt mỏi. Việc kiểm soát bao gồm chế độ ăn uống lành mạnh, tập thể dục đều đặn và theo dõi đường huyết.";
   const categories = [
     { name: "Kiến thức", icon: BookOpen, color: "bg-blue-500", count: "12 bài viết", path: "/knowledge" },
     { name: "Dinh dưỡng", icon: Utensils, color: "bg-emerald-500", count: "50+ món ăn", path: "/nutrition" },
@@ -72,6 +80,18 @@ export default function DashboardPage() {
 
   return (
     <Page title="Trang chủ">
+      {/* Floating AI Sidebar */}
+      <FloatingSidebarToggle
+        onClick={() => setIsSidebarOpen(true)}
+        isOpen={isSidebarOpen}
+      />
+      <FloatingAISidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        selectedText={selectedText}
+        articleContent={articleContent}
+      />
+
     <div className="p-6 lg:p-10 space-y-10 max-w-7xl mx-auto">
       {/* Hero Section - EXACT from GlucoCare */}
       <section className="relative overflow-hidden rounded-3xl bg-primary min-h-[220px] flex items-center px-8 lg:px-12 py-8 text-white shadow-2xl shadow-primary/30">
