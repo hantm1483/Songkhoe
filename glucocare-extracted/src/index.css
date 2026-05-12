@@ -9,14 +9,9 @@
     --color-accent: #FF7F50;
     --color-bg-warm: #FDFCFB;
   }
-
-  html {
-    @apply antialiased;
-  }
-
+  
   body {
-    @apply bg-[#F8FAFC] text-slate-800 font-sans antialiased;
-    font-size: 18px;
+    @apply bg-[#FDFCFB] text-slate-800 font-sans antialiased;
   }
 }
 
@@ -24,39 +19,9 @@
   .glass-card {
     @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-sm rounded-2xl;
   }
-
+  
   .primary-button {
     @apply bg-primary hover:bg-secondary text-white px-6 py-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg active:scale-95;
-  }
-
-  /* Sidebar - UX 2026 style */
-  .sidebar-item {
-    min-height: 56px;
-    margin: 4px 16px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    padding: 0 16px;
-    color: #64748B;
-    text-decoration: none;
-    font-weight: 500;
-    transition: all 0.2s ease;
-  }
-
-  .sidebar-item.active {
-    background-color: #0284C7;
-    color: white;
-    box-shadow: 0 10px 15px -3px rgba(2, 132, 199, 0.2);
-  }
-
-  .sidebar-item:hover:not(.active) {
-    background-color: #F1F5F9;
-    color: #0284C7;
-  }
-
-  .icon-box {
-    font-size: 24px;
-    margin-right: 12px;
   }
 
   .nav-item {

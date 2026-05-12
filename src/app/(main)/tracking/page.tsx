@@ -310,10 +310,10 @@ export default function TrackingPage() {
           )}
         </AnimatePresence>
 
-        {/* Main Content Grid - exact layout grid-cols-1 lg:grid-cols-12 */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Main Content (Chart & Logs) */}
-          <div className="lg:col-span-8 space-y-3">
+        {/* Main Content Grid - lg:col-span-2 for chart, lg:col-span-1 for sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content (Chart & Logs) - lg:col-span-2 */}
+          <div className="lg:col-span-2 space-y-3">
             {/* Chart Card - p-3, h-[120px] */}
             <Card className="p-3">
               <div className="flex items-center justify-between mb-2">
@@ -404,8 +404,17 @@ export default function TrackingPage() {
             </Card>
           </div>
 
-          {/* Sidebar Widgets - exact col-span-4 layout */}
-          <div className="lg:col-span-4 space-y-3">
+          {/* Sidebar Widgets - lg:col-span-1 */}
+          <div className="lg:col-span-1 space-y-3">
+            {/* AI Suggestion Widget - exact from HTML template */}
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-[32px] text-white shadow-xl">
+              <h3 className="text-xl font-black mb-4">Gợi ý từ AI 🤖</h3>
+              <p className="text-blue-100 mb-6 text-base leading-relaxed">
+                Đường huyết sáng nay của bạn là 6.2 mmol/l. Đây là mức lý tưởng. Hãy duy trì bữa sáng ít tinh bột như thực đơn chúng tôi gợi ý bên dưới.
+              </p>
+              <button className="w-full bg-white text-blue-700 font-black py-3 rounded-xl shadow-lg">Xem thực đơn</button>
+            </div>
+
             {/* Medication Widget - bg-amber-100, amber icon */}
             <Card className="bg-amber-100 border-amber-200 p-3 shadow-md">
               <div className="flex items-center justify-between mb-2">

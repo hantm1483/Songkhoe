@@ -1,16 +1,26 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Search, Bell, User, Menu } from "lucide-react";
 
 interface HeaderProps {
   onMenuClick?: () => void;
   showMenuButton?: boolean;
+  title?: string;
 }
 
-export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
+export function Header({ onMenuClick, showMenuButton = false, title }: HeaderProps) {
+  const [showAI, setShowAI] = useState(false);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Chào buổi sáng";
+    if (hour < 18) return "Chào buổi chiều";
+    return "Chào buổi tối";
+  };
+
   return (
-    <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+    <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 md:px-10 flex justify-between items-center">
       {/* Menu button for mobile */}
       {showMenuButton && (
         <button
@@ -22,33 +32,18 @@ export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
         </button>
       )}
 
-      {/* Search bar */}
-      <div className="flex-1 max-w-xl mx-4">
-        <div className="relative group">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors"
-          />
-          <input
-            type="text"
-            placeholder="Tìm kiếm kiến thức, thực đơn..."
-            className="w-full bg-slate-100 border-none rounded-2xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
-          />
-        </div>
-      </div>
+      {/* Page title with greeting */}
+      <h2 className="text-xl font-bold text-slate-800">
+        {title || `${getGreeting()}, User!`}
+      </h2>
 
-      {/* Right side: Bell and User */}
-      <div className="flex items-center gap-2">
-        <button className="p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-colors relative">
-          <Bell size={20} />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-white"></span>
-        </button>
-        <div className="h-8 w-px bg-slate-100 mx-2 hidden sm:block"></div>
-        <button className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-full hover:bg-slate-100 transition-colors hidden sm:flex">
-          <span className="text-sm font-semibold text-slate-700">Ngọc My</span>
-          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-            <User size={18} />
-          </div>
+      {/* Right side: AI Button */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => setShowAI(!showAI)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold shadow-md flex items-center gap-2"
+        >
+          ✨ AI Assistant
         </button>
       </div>
     </header>
