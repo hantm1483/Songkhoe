@@ -14,7 +14,7 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
 
 export async function middleware(request: NextRequest) {
   // Allow public routes
-  const publicPaths = ["/login", "/register", "/forgot-password", "/reset-password", "/"];
+  const publicPaths = ["/login", "/register", "/forgot-password", "/reset-password", "/", "/blog", "/blood-sugar", "/nutrition", "/lifestyle", "/screening", "/health-diary", "/knowledge", "/news"];
   const isPublicPath = publicPaths.some((path) => request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path));
 
   if (isPublicPath) {
