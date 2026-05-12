@@ -7,10 +7,61 @@ interface GlucoseInputProps {
   onClose: () => void;
 }
 
+const TIMING_MAP: Record<string, string> = {
+  "Lúc đói (Sáng sớm)": "fasting",
+  "Trước ăn trưa": "before_meal",
+  "Sau ăn 2 giờ": "after_meal",
+  "Trước khi ngủ": "bedtime",
+};
+
 export function GlucoseInput({ onClose }: GlucoseInputProps) {
-  const [timing, setTiming] = useState('Lúc đói (Sáng sớm)');
-  const [value, setValue] = useState('');
-  const [notes, setNotes] = useState('');
+  const [timing, setTiming] = useState("Lúc đói (Sáng sớm)");
+  const [value, setValue] = useState("");
+  const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSave = async () => {
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || numValue <= 0) {
+      setError("Vui lòng nhập chỉ số hợp lệ");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/glucose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          value: numValue,
+          timing: TIMING_MAP[timing],
+          notes: notes || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          setError("Vui lòng đăng nhập để lưu dữ liệu");
+        } else if (data.error?.message) {
+          setError(data.error.message);
+        } else {
+          setError("Lưu thất bại. Vui lòng thử lại.");
+        }
+        return;
+      }
+
+      onClose();
+    } catch (err) {
+      setError("Lưu thất bại. Vui lòng thử lại.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -53,18 +104,25 @@ export function GlucoseInput({ onClose }: GlucoseInputProps) {
           />
         </div>
       </div>
+
+      {error && (
+        <p className="text-sm font-bold text-red-500 text-center">{error}</p>
+      )}
+
       <div className="flex gap-4">
         <button
           onClick={onClose}
-          className="flex-1 rounded-[24px] bg-slate-100 py-5 font-black text-slate-500 text-sm uppercase tracking-widest hover:bg-slate-200 transition-all"
+          disabled={loading}
+          className="flex-1 rounded-[24px] bg-slate-100 py-5 font-black text-slate-500 text-sm uppercase tracking-widest hover:bg-slate-200 transition-all disabled:opacity-50"
         >
           Hủy bỏ
         </button>
         <button
-          onClick={onClose}
-          className="flex-[2] rounded-[24px] bg-natural-primary py-5 font-black text-white text-sm shadow-xl shadow-natural-primary/20 hover:bg-natural-primary-dark active:scale-[0.98] transition-all uppercase tracking-widest"
+          onClick={handleSave}
+          disabled={loading}
+          className="flex-[2] rounded-[24px] bg-natural-primary py-5 font-black text-white text-sm shadow-xl shadow-natural-primary/20 hover:bg-natural-primary-dark active:scale-[0.98] transition-all uppercase tracking-widest disabled:opacity-50"
         >
-          Lưu kết quả đo
+          {loading ? "Đang lưu..." : "Lưu kết quả đo"}
         </button>
       </div>
     </div>

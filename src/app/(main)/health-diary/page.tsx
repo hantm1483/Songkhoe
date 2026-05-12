@@ -41,6 +41,8 @@ export default function HealthDiaryPage() {
     date: new Date().toISOString().split('T')[0],
     time: '08:30'
   });
+  const [metricSaving, setMetricSaving] = useState(false);
+  const [metricError, setMetricError] = useState("");
 
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [newEvent, setNewEvent] = useState({
@@ -90,7 +92,14 @@ export default function HealthDiaryPage() {
   }
 
   const handleUpdateMetrics = async () => {
-    if (!metricForm.weight && !metricForm.systolic && !metricForm.diastolic) return;
+    if (!metricForm.weight && !metricForm.systolic && !metricForm.diastolic) {
+      setMetricError("Vui lòng nhập ít nhất một chỉ số");
+      return;
+    }
+
+    setMetricSaving(true);
+    setMetricError("");
+
     try {
       const res = await fetch("/api/body-metrics", {
         method: "POST",
@@ -102,12 +111,20 @@ export default function HealthDiaryPage() {
           blood_pressure_diastolic: metricForm.diastolic ? parseInt(metricForm.diastolic) : null,
         }),
       });
+
       if (res.ok) {
         await loadData();
         setIsUpdatingMetrics(false);
+        setMetricForm({ weight: '', systolic: '', diastolic: '', date: new Date().toISOString().split('T')[0], time: '08:30' });
+      } else if (res.status === 401) {
+        setMetricError("Vui lòng đăng nhập để lưu dữ liệu");
+      } else {
+        setMetricError("Lưu thất bại. Vui lòng thử lại.");
       }
     } catch (err) {
-      console.error(err);
+      setMetricError("Lưu thất bại. Vui lòng thử lại.");
+    } finally {
+      setMetricSaving(false);
     }
   };
 
@@ -376,9 +393,24 @@ export default function HealthDiaryPage() {
                         />
                       </div>
                     </div>
+                    {metricError && (
+                      <p className="text-xs font-bold text-rose-500 text-center">{metricError}</p>
+                    )}
                     <div className="flex gap-2">
-                      <button onClick={() => setIsUpdatingMetrics(false)} className="flex-1 text-[10px] font-black py-3 rounded-xl bg-slate-100 text-slate-500 uppercase tracking-widest">Hủy</button>
-                      <button onClick={handleUpdateMetrics} className="flex-2 text-[10px] font-black py-3 rounded-xl bg-natural-primary text-white uppercase tracking-widest shadow-lg shadow-natural-primary/20">Lưu chỉ số</button>
+                      <button
+                        onClick={() => { setIsUpdatingMetrics(false); setMetricError(""); }}
+                        disabled={metricSaving}
+                        className="flex-1 text-[10px] font-black py-3 rounded-xl bg-slate-100 text-slate-500 uppercase tracking-widest disabled:opacity-50"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        onClick={handleUpdateMetrics}
+                        disabled={metricSaving}
+                        className="flex-[2] text-[10px] font-black py-3 rounded-xl bg-natural-primary text-white uppercase tracking-widest shadow-lg shadow-natural-primary/20 disabled:opacity-50"
+                      >
+                        {metricSaving ? "Đang lưu..." : "Lưu chỉ số"}
+                      </button>
                     </div>
                   </motion.div>
                 )}

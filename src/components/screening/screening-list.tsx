@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { AlertCircle, Trash2 } from "lucide-react";
+import { AlertCircle, Trash2, Plus, X } from "lucide-react";
 import { clsx } from "clsx";
+import { motion, AnimatePresence } from "framer-motion";
 import type { LabResult } from "@/lib/supabase/database.types";
+import { LAB_RESULT_TYPE_OPTIONS } from "@/lib/validations";
 
 const items = [
   { title: 'HbA1c', target: '< 7.0%', frequency: 'Mỗi 3-6 tháng', meaning: 'Đánh giá kiểm soát đường huyết trong 3 tháng qua.' },
@@ -86,6 +88,16 @@ export function ScreeningList() {
 export function ScreeningLog() {
   const [logs, setLogs] = useState<LabResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [formData, setFormData] = useState({
+    type: "hba1c" as "hba1c" | "cholesterol" | "creatinine" | "other",
+    value: "",
+    unit: "",
+    recordedAt: new Date().toISOString().split("T")[0],
+    notes: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadLogs() {
@@ -102,6 +114,44 @@ export function ScreeningLog() {
     }
     loadLogs();
   }, []);
+
+  const handleAdd = async () => {
+    const numValue = parseFloat(formData.value);
+    if (isNaN(numValue) || numValue <= 0) {
+      setError("Vui lòng nhập chỉ số hợp lệ");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/lab-results", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: formData.type,
+          value: numValue,
+          unit: formData.unit || undefined,
+          recordedAt: formData.recordedAt,
+          notes: formData.notes || undefined,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        setLogs([json.data, ...logs]);
+        setShowAddForm(false);
+        setFormData({ type: "hba1c", value: "", unit: "", recordedAt: new Date().toISOString().split("T")[0], notes: "" });
+      } else {
+        setError("Lưu thất bại");
+      }
+    } catch {
+      setError("Lưu thất bại");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -152,7 +202,114 @@ export function ScreeningLog() {
 
   return (
     <div className="space-y-8">
-      <h3 className="text-xl font-black text-natural-primary-dark uppercase tracking-tight">Nhật ký tầm soát chi tiết</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-xl font-black text-natural-primary-dark uppercase tracking-tight">Nhật ký tầm soát chi tiết</h3>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-natural-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-natural-primary/20 hover:bg-natural-primary/90 transition-all"
+        >
+          <Plus className="h-4 w-4" />
+          Nhập lịch tầm soát
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showAddForm && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-white rounded-[32px] p-6 border-2 border-natural-primary shadow-xl space-y-5"
+          >
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-black text-natural-primary-dark uppercase tracking-wide">Nhập kết quả mới</h4>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-natural-primary hover:bg-natural-light transition-all"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block ml-1">Loại xét nghiệm</label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as "hba1c" | "cholesterol" | "creatinine" | "other" })}
+                  className="w-full text-sm font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                >
+                  {LAB_RESULT_TYPE_OPTIONS.map(t => (
+                    <option key={t} value={t}>{getTypeName(t)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block ml-1">Ngày xét nghiệm</label>
+                <input
+                  type="date"
+                  value={formData.recordedAt}
+                  onChange={(e) => setFormData({ ...formData, recordedAt: e.target.value })}
+                  className="w-full text-sm font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block ml-1">Chỉ số kết quả</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formData.value}
+                  onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+                  placeholder="Ví dụ: 6.5"
+                  className="w-full text-sm font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block ml-1">Đơn vị (tùy chọn)</label>
+                <input
+                  type="text"
+                  value={formData.unit}
+                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  placeholder="Ví dụ: %, mmol/L"
+                  className="w-full text-sm font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block ml-1">Ghi chú (tùy chọn)</label>
+              <textarea
+                rows={2}
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Lưu ý hoặc nhận xét của bác sĩ..."
+                className="w-full text-sm font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary resize-none"
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm font-bold text-rose-500">{error}</p>
+            )}
+
+            <div className="flex gap-3 justify-end pt-2 border-t border-natural-border/30">
+              <button
+                onClick={() => setShowAddForm(false)}
+                disabled={saving}
+                className="px-5 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition-all disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleAdd}
+                disabled={saving}
+                className="px-6 py-3 rounded-xl bg-natural-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-natural-primary/20 disabled:opacity-50"
+              >
+                {saving ? "Đang lưu..." : "Lưu kết quả"}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {logs.length === 0 ? (
         <div className="text-center py-16">

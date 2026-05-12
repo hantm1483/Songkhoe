@@ -1,31 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, Trash2, Edit2 } from "lucide-react";
 import { clsx } from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface MealEntry {
-  date: string;
+  date: string; // ISO YYYY-MM-DD for data, DD/MM for display
   type: string;
   dish: string;
   calories: number;
 }
 
+function formatDateForStorage(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-");
+  return `${day}/${month}`;
+}
+
 export function NutritionPlan() {
   const [mealHistory, setMealHistory] = useState<MealEntry[]>([
-    { date: '12/05', type: 'Sáng', dish: 'Phở bò ít bánh', calories: 350 },
-    { date: '12/05', type: 'Trưa', dish: 'Cơm gạo lứt, cá kho', calories: 550 },
-    { date: '12/05', type: 'Chiều', dish: 'Salad gà, súp rau', calories: 450 },
-    { date: '11/05', type: 'Chiều', dish: 'Bún chả bò', calories: 600 },
+    { date: '13/05', type: 'Sáng', dish: 'Phở bò ít bánh', calories: 350 },
+    { date: '13/05', type: 'Trưa', dish: 'Cơm gạo lứt, cá kho', calories: 550 },
+    { date: '13/05', type: 'Chiều', dish: 'Salad gà, súp rau', calories: 450 },
+    { date: '12/05', type: 'Chiều', dish: 'Bún chả bò', calories: 600 },
   ]);
 
   const [isAdding, setIsAdding] = useState(false);
+  const [editingMeal, setEditingMeal] = useState<{ date: string; type: string; index: number } | null>(null);
+  const [editDish, setEditDish] = useState({ dish: "", calories: "" });
   const [sessionMeta, setSessionMeta] = useState({
-    date: new Date().toLocaleDateString('vi-VN').slice(0, 5),
-    type: 'Sáng'
+    date: new Date().toISOString().split("T")[0],
+    type: "Sáng",
   });
-  const [sessionDishes, setSessionDishes] = useState([{ dish: '', calories: '' }]);
+  const [sessionDishes, setSessionDishes] = useState([{ dish: "", calories: "" }]);
 
   const handleAddDishRow = () => {
     setSessionDishes([...sessionDishes, { dish: '', calories: '' }]);
@@ -47,19 +54,51 @@ export function NutritionPlan() {
     const validDishes = sessionDishes.filter(d => d.dish && d.calories);
     if (validDishes.length === 0) return;
 
+    const dateForStorage = formatDateForStorage(sessionMeta.date);
+
     const newEntries = validDishes.map(d => ({
-      ...sessionMeta,
+      date: dateForStorage,
+      type: sessionMeta.type,
       dish: d.dish,
       calories: parseInt(d.calories.toString())
     }));
 
     setMealHistory([...newEntries, ...mealHistory]);
     setIsAdding(false);
-    setSessionDishes([{ dish: '', calories: '' }]);
+    setSessionDishes([{ dish: "", calories: "" }]);
+  };
+
+  const handleDeleteMeal = (date: string, type: string, index: number) => {
+    const dayMeals = mealHistory.filter(m => m.date === date && m.type === type);
+    const targetMeal = dayMeals[index];
+    if (!targetMeal) return;
+    setMealHistory(mealHistory.filter(m => !(m.date === targetMeal.date && m.type === targetMeal.type && m.dish === targetMeal.dish && m.calories === targetMeal.calories)));
+  };
+
+  const handleStartEditMeal = (date: string, type: string, index: number) => {
+    const dayMeals = mealHistory.filter(m => m.date === date && m.type === type);
+    const meal = dayMeals[index];
+    if (!meal) return;
+    setEditingMeal({ date, type, index });
+    setEditDish({ dish: meal.dish, calories: meal.calories.toString() });
+  };
+
+  const handleSaveEditMeal = () => {
+    if (!editingMeal) return;
+    const dayMeals = mealHistory.filter(m => m.date === editingMeal.date && m.type === editingMeal.type);
+    const targetMeal = dayMeals[editingMeal.index];
+    if (!targetMeal) return;
+    setMealHistory(mealHistory.map(m =>
+      m.date === targetMeal.date && m.type === targetMeal.type && m.dish === targetMeal.dish && m.calories === targetMeal.calories
+        ? { ...m, dish: editDish.dish, calories: parseInt(editDish.calories) || 0 }
+        : m
+    ));
+    setEditingMeal(null);
+    setEditDish({ dish: "", calories: "" });
   };
 
   const uniqueDates = Array.from(new Set(mealHistory.map(m => m.date))).sort((a, b) => (b as string).localeCompare(a as string)) as string[];
-  const today = '12/05';
+  const today = new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }).replace('/', '/');
   const todayMeals = mealHistory.filter(m => m.date === today);
   const sessionTotals = {
     'Sáng': todayMeals.filter(m => m.type === 'Sáng').reduce((sum, m) => sum + m.calories, 0),
@@ -123,11 +162,10 @@ export function NutritionPlan() {
               <div className="w-full sm:w-1/3">
                 <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block ml-1">Ngày</label>
                 <input
-                  type="text"
+                  type="date"
                   value={sessionMeta.date}
                   onChange={(e) => setSessionMeta({ ...sessionMeta, date: e.target.value })}
                   className="w-full text-xs font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
-                  placeholder="DD/MM"
                 />
               </div>
               <div className="w-full sm:w-1/3">
@@ -157,12 +195,12 @@ export function NutritionPlan() {
                       placeholder="Tên món ăn..."
                     />
                   </div>
-                  <div className="w-24">
+                  <div className="w-32">
                     <input
                       type="number"
                       value={dish.calories}
                       onChange={(e) => handleUpdateDish(i, 'calories', e.target.value)}
-                      className="w-full text-xs font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                      className="w-full text-sm font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
                       placeholder="Kcal"
                     />
                   </div>
@@ -239,8 +277,22 @@ export function NutritionPlan() {
                           <div className="space-y-1">
                             {mealsOfType.map((meal, idx) => (
                               <div key={idx} className="flex justify-between items-center gap-2">
-                                <p className="text-xs font-bold text-natural-primary-dark line-clamp-1">{meal.dish}</p>
+                                <p className="text-xs font-bold text-natural-primary-dark line-clamp-1 flex-1">{meal.dish}</p>
                                 <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{meal.calories}</p>
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => handleStartEditMeal(date, type, idx)}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-natural-primary hover:bg-natural-light transition-all"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteMeal(date, type, idx)}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -255,6 +307,62 @@ export function NutritionPlan() {
             );
           })}
         </div>
+
+        <AnimatePresence>
+          {editingMeal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setEditingMeal(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-white rounded-[32px] p-6 w-full max-w-sm shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h4 className="text-sm font-black text-natural-primary-dark uppercase tracking-wide mb-4">Chỉnh sửa món ăn</h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block ml-1">Tên món</label>
+                    <input
+                      type="text"
+                      value={editDish.dish}
+                      onChange={(e) => setEditDish({ ...editDish, dish: e.target.value })}
+                      className="w-full text-sm font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block ml-1">Calo (kcal)</label>
+                    <input
+                      type="number"
+                      value={editDish.calories}
+                      onChange={(e) => setEditDish({ ...editDish, calories: e.target.value })}
+                      className="w-full text-sm font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setEditingMeal(null)}
+                    className="flex-1 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition-all"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={handleSaveEditMeal}
+                    className="flex-[2] py-3 rounded-xl bg-natural-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-natural-primary/20"
+                  >
+                    Lưu
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
