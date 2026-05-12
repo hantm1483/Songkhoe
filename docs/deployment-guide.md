@@ -71,7 +71,7 @@ In Vercel project settings:
 - [ ] Login/Register works
 - [ ] Protected routes redirect properly
 - [ ] AI chat sends messages
-- [ ] All 8 screens render
+- [ ] All 4 navigation screens render
 - [ ] No console errors
 
 ## Rollback Procedure
