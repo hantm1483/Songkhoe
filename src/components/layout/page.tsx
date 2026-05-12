@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { cn } from "@/lib/utils";
-import { MobileHeader } from "./sidebar";
+import { MobileHeader, DesktopSidebar } from "./sidebar";
 import { FooterSummary } from "./footer-summary";
 
 interface PageProps {
@@ -22,6 +22,9 @@ export function Page({
 
   return (
     <div className="min-h-screen bg-natural-bg text-natural-text antialiased font-sans selection:bg-natural-soft">
+      {/* Desktop Sidebar */}
+      <DesktopSidebar />
+
       {/* Mobile Header with hamburger menu */}
       {showMobileHeader && (
         <MobileHeader
