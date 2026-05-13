@@ -7,6 +7,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { LabResult } from "@/lib/supabase/database.types";
 import { LAB_RESULT_TYPE_OPTIONS } from "@/lib/validations";
 
+const LAB_RESULT_TYPE_NAMES: Record<string, string> = {
+  hba1c: 'HbA1c',
+  cholesterol: 'Cholesterol',
+  creatinine: 'Creatinine',
+  other: 'Khác',
+};
+
 const items = [
   { title: 'HbA1c', target: '< 7.0%', frequency: 'Mỗi 3-6 tháng', meaning: 'Đánh giá kiểm soát đường huyết trong 3 tháng qua.' },
   { title: 'Đường huyết lúc đói', target: '3.9 - 7.2 mmol/L', frequency: 'Hàng ngày / Định kỳ', meaning: 'Kiểm soát đường huyết tại thời điểm đo.' },
@@ -89,7 +96,7 @@ export function ScreeningLog() {
   const [logs, setLogs] = useState<LabResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<Partial<LabResult>>({});
+  const [editData, setEditData] = useState<Partial<LabResult & { customContent: string; location: string }>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -124,16 +131,24 @@ export function ScreeningLog() {
     };
     setLogs([newRow as LabResult, ...logs]);
     setEditingId(newId);
-    setEditData({ ...newRow });
+    setEditData({ ...newRow, customContent: "", location: "" });
   };
 
   const handleEdit = (log: LabResult) => {
     setEditingId(log.id);
-    setEditData({ ...log });
+    const notesObj = log.notes ? JSON.parse(log.notes) : {};
+    setEditData({
+      ...log,
+      customContent: notesObj.customContent || "",
+      location: notesObj.location || "",
+    });
   };
 
   const handleSave = async () => {
-    if (!editData.type || !editData.value) {
+    const rawType = editData.type as string | undefined;
+    const typeValue = rawType === "custom" ? "other" : rawType;
+
+    if (!typeValue || !editData.value) {
       if (editData.id?.startsWith("temp-")) {
         setLogs(logs.filter(l => l.id !== editData.id));
       }
@@ -141,6 +156,11 @@ export function ScreeningLog() {
       setEditData({});
       return;
     }
+
+    const notesObj: Record<string, string> = {};
+    if (editData.location) notesObj.location = editData.location;
+    if (rawType === "custom" && editData.customContent) notesObj.customContent = editData.customContent;
+    const notes = Object.keys(notesObj).length > 0 ? JSON.stringify(notesObj) : null;
 
     if (editData.id?.startsWith("temp-")) {
       setSaving(true);
@@ -150,16 +170,20 @@ export function ScreeningLog() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            type: editData.type,
+            type: typeValue,
             value: parseFloat(String(editData.value)),
             unit: editData.unit || undefined,
             recordedAt: editData.recorded_at,
-            notes: editData.notes || undefined,
+            notes: notes,
           }),
         });
         if (res.ok) {
           const json = await res.json();
           const newLog = json.data;
+          // Preserve display name for custom types
+          if (rawType === "custom" && editData.customContent) {
+            newLog.displayName = editData.customContent;
+          }
           setLogs(logs.map(l => l.id === editData.id ? newLog : l));
         } else {
           setError("Lưu thất bại");
@@ -241,14 +265,25 @@ export function ScreeningLog() {
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
   };
 
-  const getTypeName = (type: string | null) => {
-    const map: Record<string, string> = {
-      hba1c: 'HbA1c',
-      cholesterol: 'Cholesterol',
-      creatinine: 'Creatinine',
-      other: 'Khác',
-    };
-    return type ? map[type] || type : 'Khác';
+  const getTypeName = (type: string | null, log?: LabResult) => {
+    if (type === "custom" && log) {
+      try {
+        const notesObj = log.notes ? JSON.parse(log.notes) : {};
+        return notesObj.customContent || "Khác";
+      } catch {
+        return "Khác";
+      }
+    }
+    return type ? LAB_RESULT_TYPE_NAMES[type] || type : 'Khác';
+  };
+
+  const getLocation = (log: LabResult) => {
+    try {
+      const notesObj = log.notes ? JSON.parse(log.notes) : {};
+      return notesObj.location || "";
+    } catch {
+      return "";
+    }
   };
 
   if (loading) {
@@ -291,7 +326,7 @@ export function ScreeningLog() {
               <th className="py-6 px-4">Ngưỡng mục tiêu</th>
               <th className="py-6 px-4">Mức độ</th>
               <th className="py-6 px-4">Kết quả</th>
-              <th className="py-6 px-4">Lưu ý</th>
+              <th className="py-6 px-4">Nơi tầm soát</th>
               <th className="py-6 pr-8 text-right">Thao tác</th>
             </tr>
           </thead>
@@ -311,19 +346,43 @@ export function ScreeningLog() {
                         <div className="space-y-2">
                           <select
                             value={editData.type || "hba1c"}
-                            onChange={(e) => setEditData({ ...editData, type: e.target.value as any })}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === "custom") {
+                                setEditData({ ...editData, type: "custom" as any, customContent: "" });
+                              } else {
+                                setEditData({ ...editData, type: val as any });
+                              }
+                            }}
                             className="w-full text-xs font-bold p-2 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary uppercase"
                           >
                             {LAB_RESULT_TYPE_OPTIONS.map(t => (
-                              <option key={t} value={t}>{getTypeName(t)}</option>
+                              <option key={t} value={t}>{LAB_RESULT_TYPE_NAMES[t]}</option>
                             ))}
+                            <option value="custom">Khác...</option>
                           </select>
+                          {(editData.type as string) === "custom" && (
+                            <input
+                              type="text"
+                              value={editData.customContent || ""}
+                              onChange={(e) => setEditData({ ...editData, customContent: e.target.value })}
+                              placeholder="Nhập nội dung..."
+                              className="w-full text-xs font-bold p-2 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary uppercase"
+                            />
+                          )}
                           <div className="flex gap-2">
                             <input
                               type="date"
                               value={editData.recorded_at?.split("T")[0] || ""}
                               onChange={(e) => setEditData({ ...editData, recorded_at: e.target.value })}
                               className="w-full text-[10px] font-bold p-1 rounded-md bg-white border border-natural-border"
+                            />
+                            <input
+                              type="text"
+                              value={editData.location || ""}
+                              onChange={(e) => setEditData({ ...editData, location: e.target.value })}
+                              placeholder="Nơi tầm soát"
+                              className="w-full text-[10px] font-medium p-1 rounded-md bg-white border border-natural-border"
                             />
                           </div>
                         </div>
@@ -399,9 +458,12 @@ export function ScreeningLog() {
                     <>
                       <td className="py-6 pl-8">
                         <div className="space-y-1">
-                          <p className="text-sm font-black text-natural-primary-dark uppercase tracking-widest">{getTypeName(log.type)}</p>
+                          <p className="text-sm font-black text-natural-primary-dark uppercase tracking-widest">{getTypeName(log.type, log)}</p>
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] font-bold text-slate-400">{formatDate(log.recorded_at)}</span>
+                            {getLocation(log) && (
+                              <span className="text-[10px] font-medium text-natural-primary/70">{getLocation(log)}</span>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -424,7 +486,7 @@ export function ScreeningLog() {
                       </td>
                       <td className="py-6 px-4">
                         <p className="text-xs font-medium text-slate-500 leading-relaxed max-w-[150px] line-clamp-2">
-                          {log.notes || '-'}
+                          {getLocation(log) || '-'}
                         </p>
                       </td>
                       <td className="py-6 pr-8 text-right">
