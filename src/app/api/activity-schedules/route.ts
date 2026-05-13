@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { successResponse, errorResponse, databaseError, parseBody } from "@/lib/api-response";
 import { getAuthContext } from "@/lib/supabase/auth-helper";
 
@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
   const auth = await getAuthContext();
   if (!auth) return NextResponse.json(errorResponse("Không thể xác định người dùng", "AUTH_ERROR"), { status: 401 });
 
-  const supabase = await createClient();
+  // Use admin client for demo mode to bypass RLS
+  const supabase = auth.isDemo ? await createAdminClient() : await createClient();
   const { searchParams } = new URL(request.url);
   const limit = parseInt(searchParams.get("limit") || "50");
   const offset = parseInt(searchParams.get("offset") || "0");
@@ -48,7 +49,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(errorResponse("Tên hoạt động và ngày là bắt buộc", "VALIDATION_ERROR"), { status: 400 });
   }
 
-  const supabase = await createClient();
+  // Use admin client for demo mode to bypass RLS
+  const supabase = auth.isDemo ? await createAdminClient() : await createClient();
   const { data, error } = await supabase.from("activity_schedules").insert({
     user_id: auth.userId,
     activity_name,

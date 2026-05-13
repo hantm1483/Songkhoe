@@ -18,30 +18,37 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   // First try getUser (validates JWT with Supabase)
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (authError || !user) {
-    // No Supabase session - check for guest session cookie
-    // The guest session cookie is set by the login page with the device ID
-    const cookieStore = supabase.auth.getSession();
-    // Note: getSession returns { data: { session } } synchronously in server context
-    // We need to access cookies directly
-    const { cookies } = await import("next/headers");
-    const cookieStore2 = await cookies();
-    const guestCookie = cookieStore2.get("sk_guest_session");
-
-    if (guestCookie?.value) {
-      return {
-        userId: `demo-${guestCookie.value}`,
-        isDemo: true,
-      };
-    }
-
-    return null;
+  if (!authError && user) {
+    return {
+      userId: user.id,
+      isDemo: false,
+    };
   }
 
-  return {
-    userId: user.id,
-    isDemo: false,
-  };
+  // getUser() failed - try getSession() as fallback to get session from cookie
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (session?.user) {
+    return {
+      userId: session.user.id,
+      isDemo: false,
+    };
+  }
+
+  // No Supabase session - check for guest session cookie
+  const { cookies } = await import("next/headers");
+  const cookieStore = await cookies();
+  const guestCookie = cookieStore.get("sk_guest_session");
+
+  if (guestCookie?.value) {
+    return {
+      userId: `demo-${guestCookie.value}`,
+      isDemo: true,
+    };
+  }
+
+  console.error("Auth check failed - getUser error:", authError?.message);
+  return null;
 }
 
 /**
