@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/middleware";
+import { getDemoUid } from "@/lib/demo-user";
 
 function addSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
@@ -12,44 +13,61 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   return response;
 }
 
+// Paths that require authentication (either guest or account)
+const authRequiredPaths = ["/trangchu", "/bua-an", "/thuoc", "/nhatky", "/xet-nghiem", "/kien-thuc", "/troly-ai", "/memory", "/tracking", "/care"];
+
 export async function middleware(request: NextRequest) {
-  // Allow public routes
-  const publicPaths = ["/login", "/register", "/forgot-password", "/reset-password", "/", "/blog", "/blood-sugar", "/nutrition", "/lifestyle", "/screening", "/health-diary", "/knowledge", "/news"];
-  const isPublicPath = publicPaths.some((path) => request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path));
+  const pathname = request.nextUrl.pathname;
+
+  // Allow auth pages through
+  if (pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password")) {
+    const response = NextResponse.next();
+    return addSecurityHeaders(response);
+  }
+
+  // Allow public paths (blog, news, etc.)
+  const publicPaths = ["/", "/blog", "/blood-sugar", "/nutrition", "/lifestyle", "/screening", "/health-diary", "/knowledge", "/news"];
+  const isPublicPath = publicPaths.some((path) => pathname === path || pathname.startsWith(path));
 
   if (isPublicPath) {
     const response = NextResponse.next();
     return addSecurityHeaders(response);
   }
 
-  // Check for protected routes
-  const protectedPaths = ["/trangchu", "/bua-an", "/thuoc", "/nhatky", "/xet-nghiem", "/kien-thuc", "/troly-ai", "/memory"];
-  const isProtectedPath = protectedPaths.some((path) => request.nextUrl.pathname.startsWith(path));
-
-  if (!isProtectedPath) {
+  // Check if path requires authentication
+  const requiresAuth = authRequiredPaths.some((path) => pathname.startsWith(path));
+  if (!requiresAuth) {
     const response = NextResponse.next();
     return addSecurityHeaders(response);
   }
 
-  // Create Supabase client for middleware
+  // Check Supabase session first (real authenticated user)
   const supabase = await createClient();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData?.session;
 
-  // Get session from cookies
-  const { data } = await supabase.auth.getSession();
-  const session = data?.session;
-
-  // Redirect to login if no session
-  if (!session) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", request.nextUrl.pathname);
-    const response = NextResponse.redirect(loginUrl);
+  if (session) {
+    // Real authenticated user
+    const response = NextResponse.next();
+    response.headers.set("X-User-Id", session.user.id);
+    response.headers.set("X-Auth-Method", "supabase-session");
     return addSecurityHeaders(response);
   }
 
-  // Add security headers and user info to response
-  const response = NextResponse.next();
-  response.headers.set("X-User-Id", session.user.id);
-  response.headers.set("X-Auth-Method", "supabase-cookie");
+  // Check for guest session cookie
+  const guestSessionCookie = request.cookies.get("sk_guest_session");
+  if (guestSessionCookie?.value) {
+    // Guest user with device ID
+    const response = NextResponse.next();
+    response.headers.set("X-User-Id", `demo-${guestSessionCookie.value}`);
+    response.headers.set("X-Auth-Method", "guest-session");
+    return addSecurityHeaders(response);
+  }
+
+  // No session - redirect to login
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set("redirect", pathname);
+  const response = NextResponse.redirect(loginUrl);
   return addSecurityHeaders(response);
 }
 

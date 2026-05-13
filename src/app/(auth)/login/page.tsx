@@ -39,7 +39,17 @@ export default function AuthPage() {
     setLoading(true);
     setError("");
     try {
-      // Clear any existing demo UID to start fresh
+      // Generate or get device ID
+      let deviceId = localStorage.getItem("sk_demo_uid");
+      if (!deviceId) {
+        deviceId = crypto.randomUUID();
+        localStorage.setItem("sk_demo_uid", deviceId);
+      }
+
+      // Set guest session cookie (expires in 30 days)
+      document.cookie = `sk_guest_session=${deviceId}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=strict`;
+
+      // Clear any old demo UID to start fresh
       clearDemoUid();
       window.location.href = "/trangchu";
     } catch {
