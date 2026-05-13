@@ -2,7 +2,6 @@
  * Auth helper for API routes - supports both real auth and demo mode
  */
 import { createClient } from "./server";
-import { getDemoUid } from "../demo-user";
 
 export interface AuthContext {
   userId: string;
@@ -16,17 +15,27 @@ export interface AuthContext {
 export async function getAuthContext(): Promise<AuthContext | null> {
   const supabase = await createClient();
 
+  // First try getUser (validates JWT with Supabase)
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    // Demo mode - use device ID as user_id
-    const demoUid = getDemoUid();
-    if (!demoUid) return null;
+    // No Supabase session - check for guest session cookie
+    // The guest session cookie is set by the login page with the device ID
+    const cookieStore = supabase.auth.getSession();
+    // Note: getSession returns { data: { session } } synchronously in server context
+    // We need to access cookies directly
+    const { cookies } = await import("next/headers");
+    const cookieStore2 = await cookies();
+    const guestCookie = cookieStore2.get("sk_guest_session");
 
-    return {
-      userId: `demo-${demoUid}`,
-      isDemo: true,
-    };
+    if (guestCookie?.value) {
+      return {
+        userId: `demo-${guestCookie.value}`,
+        isDemo: true,
+      };
+    }
+
+    return null;
   }
 
   return {

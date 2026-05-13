@@ -71,8 +71,13 @@ export default function AuthPage() {
       });
 
       if (signInError) {
-        if (signInError.message.includes("Invalid login")) {
+        console.error("Login error:", signInError);
+        if (signInError.message.includes("Invalid login credentials")) {
           setError("Email hoặc mật khẩu không đúng");
+        } else if (signInError.message.includes("Email not confirmed")) {
+          setError("Email chưa được xác nhận. Vui lòng kiểm tra hộp thư.");
+        } else if (signInError.message.includes("Failed to fetch") || signInError.message.includes("fetch")) {
+          setError("Không thể kết nối đến Supabase. Vui lòng kiểm tra cấu hình Auth.");
         } else {
           setError(signInError.message);
         }
@@ -80,8 +85,9 @@ export default function AuthPage() {
       }
 
       window.location.href = "/trangchu";
-    } catch {
-      setError("Đã xảy ra lỗi. Vui lòng thử lại.");
+    } catch (err: unknown) {
+      console.error("Login catch error:", err);
+      setError("Đã xảy ra lỗi. Vui lòng thử lại sau.");
     } finally {
       setLoading(false);
     }
@@ -118,8 +124,11 @@ export default function AuthPage() {
       });
 
       if (signUpError) {
+        console.error("Register error:", signUpError);
         if (signUpError.message.includes("already registered")) {
           setError("Email này đã được đăng ký");
+        } else if (signUpError.message.includes("Failed to fetch") || signUpError.message.includes("fetch")) {
+          setError("Không thể kết nối đến Supabase. Vui lòng kiểm tra cấu hình Auth.");
         } else {
           setError(signUpError.message);
         }
@@ -141,8 +150,9 @@ export default function AuthPage() {
       }
 
       window.location.href = "/trangchu";
-    } catch {
-      setError("Đã xảy ra lỗi. Vui lòng thử lại.");
+    } catch (err: unknown) {
+      console.error("Register catch error:", err);
+      setError("Đã xảy ra lỗi. Vui lòng thử lại sau.");
     } finally {
       setLoading(false);
     }
