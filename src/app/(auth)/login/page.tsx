@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
-import { Icon } from "@/components/ui/icon";
+import { ChevronRight, User, UserCircle, ArrowLeft, Eye, EyeOff, Check, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { clearDemoUid } from "@/lib/demo-user";
@@ -179,7 +179,7 @@ export default function AuthPage() {
             >
               <div className="flex items-center gap-4">
                 <div className="h-14 w-14 rounded-2xl bg-natural-primary flex items-center justify-center shadow-lg shadow-natural-primary/20">
-                  <Icon name="person" className="w-7 h-7 text-white" />
+                  <User className="w-7 h-7 text-white" />
                 </div>
                 <div className="flex-1">
                   <p className="text-base font-black text-on-surface uppercase tracking-wide">
@@ -189,7 +189,7 @@ export default function AuthPage() {
                     Dữ liệu được lưu theo thiết bị của bạn
                   </p>
                 </div>
-                <Icon name="chevron_right" className="w-5 h-5 text-natural-primary group-hover:translate-x-1 transition-transform" />
+                <ChevronRight className="w-5 h-5 text-natural-primary group-hover:translate-x-1 transition-transform" />
               </div>
             </button>
 
@@ -208,7 +208,7 @@ export default function AuthPage() {
             >
               <div className="flex items-center gap-4">
                 <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-                  <Icon name="account_circle" className="w-7 h-7 text-white" />
+                  <UserCircle className="w-7 h-7 text-white" />
                 </div>
                 <div className="flex-1">
                   <p className="text-base font-black text-on-surface uppercase tracking-wide">
@@ -218,7 +218,7 @@ export default function AuthPage() {
                     Tạo tài khoản để đồng bộ dữ liệu
                   </p>
                 </div>
-                <Icon name="chevron_right" className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
+                <ChevronRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
               </div>
             </button>
           </div>
@@ -233,7 +233,7 @@ export default function AuthPage() {
               onClick={() => { setMode("choice"); resetForm(); }}
               className="p-2 rounded-xl hover:bg-surface-container-low transition-all"
             >
-              <Icon name="arrow_back" className="w-5 h-5 text-on-surface-variant" />
+              <ArrowLeft className="w-5 h-5 text-on-surface-variant" />
             </button>
             <h2 className="text-xl font-black text-on-surface uppercase tracking-tight">
               Đăng nhập
@@ -273,7 +273,7 @@ export default function AuthPage() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-9 text-on-surface-variant hover:text-primary transition-colors"
               >
-                <Icon name={showPassword ? "visibility_off" : "visibility"} className="w-5 h-5" />
+                <Eye className="w-5 h-5" />
               </button>
             </div>
 
@@ -301,7 +301,7 @@ export default function AuthPage() {
               onClick={() => { setMode("choice"); resetForm(); }}
               className="p-2 rounded-xl hover:bg-surface-container-low transition-all"
             >
-              <Icon name="arrow_back" className="w-5 h-5 text-on-surface-variant" />
+              <ArrowLeft className="w-5 h-5 text-on-surface-variant" />
             </button>
             <h2 className="text-xl font-black text-on-surface uppercase tracking-tight">
               Tạo tài khoản mới
@@ -351,7 +351,7 @@ export default function AuthPage() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-9 text-on-surface-variant hover:text-primary transition-colors"
               >
-                <Icon name={showPassword ? "visibility_off" : "visibility"} className="w-5 h-5" />
+                <Eye className="w-5 h-5" />
               </button>
             </div>
 
@@ -369,10 +369,7 @@ export default function AuthPage() {
                         req.met ? "text-success" : "text-on-surface-variant"
                       }`}
                     >
-                      <Icon
-                        name={req.met ? "check_circle" : "radio_button_unchecked"}
-                        className={`w-4 h-4 ${req.met ? "text-success" : "text-outline"}`}
-                      />
+                      <Check className={`w-4 h-4 ${req.met ? "text-success" : "text-outline"}`} />
                       {req.label}
                     </div>
                   ))}
