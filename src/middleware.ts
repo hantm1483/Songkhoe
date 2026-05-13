@@ -4,7 +4,7 @@ import { getDemoUid } from "@/lib/demo-user";
 
 function addSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
-  response.headers.set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;");
+  response.headers.set("Content-Security-Policy", "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://auth.us-east-1.supabase.com https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.cookiebot.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://auth.us-east-1.supabase.com wss://*.supabase.co;");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
