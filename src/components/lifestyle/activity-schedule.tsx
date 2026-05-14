@@ -182,7 +182,7 @@ export function ActivitySchedule() {
     }
   };
 
-  const handleQuickAdd = async (closeAfter = false) => {
+  const handleQuickAdd = async (keepOpen = false) => {
     if (!quickAdd.activity_name) return;
     try {
       const res = await fetch("/api/activity-schedules", {
@@ -198,11 +198,12 @@ export function ActivitySchedule() {
       });
       if (res.ok) {
         await loadSchedule();
-        setQuickAdd({ date: new Date().toISOString().split('T')[0], time: '08:00', activity_name: '', duration_minutes: '30', calories_burned: '' });
-        if (closeAfter) {
-          setShowQuickAdd(false);
+        alert("Lưu thành công!");
+        if (keepOpen) {
+          setQuickAdd({ date: new Date().toISOString().split('T')[0], time: '08:00', activity_name: '', duration_minutes: '30', calories_burned: '' });
         } else {
-          alert("Lưu thành công!");
+          setShowQuickAdd(false);
+          setQuickAdd({ date: new Date().toISOString().split('T')[0], time: '08:00', activity_name: '', duration_minutes: '30', calories_burned: '' });
         }
       }
     } catch (err) {
