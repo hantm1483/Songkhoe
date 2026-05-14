@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Calendar, Edit2, Trash2, ChevronLeft, ChevronRight, Search, Filter } from "lucide-react";
+import { Calendar, Edit2, Trash2, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import type { GlucoseLog } from "@/lib/supabase/database.types";
 
 interface GlucoseLogProps {
@@ -13,7 +13,12 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
   const [loading, setLoading] = useState(true);
   const [daysPerPage, setDaysPerPage] = useState(3);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState("");
+
+  // Column-specific search
+  const [dateSearch, setDateSearch] = useState("");
+  const [timingSearch, setTimingSearch] = useState("");
+  const [valueSearch, setValueSearch] = useState("");
+
   const [sortField, setSortField] = useState<"measured_at" | "value" | "timing">("measured_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
@@ -85,19 +90,33 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
       .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime());
   }, [logs]);
 
-  // Filter by search query
+  // Filter by column-specific searches
   const filteredGroups = useMemo(() => {
-    if (!searchQuery) return groupedLogs;
+    let result = groupedLogs;
 
-    const query = searchQuery.toLowerCase();
-    return groupedLogs.filter(([_, dayLogs]) =>
-      dayLogs.some(log =>
-        log.value.toString().includes(query) ||
-        (log.timing && getTimingLabel(log.timing).toLowerCase().includes(query)) ||
-        formatDate(log.measured_at).includes(query)
-      )
-    );
-  }, [groupedLogs, searchQuery]);
+    if (dateSearch) {
+      const query = dateSearch.toLowerCase();
+      result = result.filter(([_, dayLogs]) =>
+        dayLogs.some(log => formatDate(log.measured_at).toLowerCase().includes(query))
+      );
+    }
+
+    if (timingSearch) {
+      const query = timingSearch.toLowerCase();
+      result = result.filter(([_, dayLogs]) =>
+        dayLogs.some(log => getTimingLabel(log.timing).toLowerCase().includes(query))
+      );
+    }
+
+    if (valueSearch) {
+      const query = valueSearch.toLowerCase();
+      result = result.filter(([_, dayLogs]) =>
+        dayLogs.some(log => log.value.toString().includes(query))
+      );
+    }
+
+    return result;
+  }, [groupedLogs, dateSearch, timingSearch, valueSearch]);
 
   // Sort within groups
   const sortedGroups = useMemo(() => {
@@ -173,11 +192,50 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
   const SortIcon = ({ field }: { field: "measured_at" | "value" | "timing" }) => {
     if (sortField !== field) return null;
     return (
-      <span className="ml-1 inline-block">
+      <span className="ml-1 inline-block text-natural-primary">
         {sortDirection === "asc" ? "↑" : "↓"}
       </span>
     );
   };
+
+  const ColumnHeader = ({
+    label,
+    field,
+    searchValue,
+    onSearchChange,
+  }: {
+    label: string;
+    field: "measured_at" | "value" | "timing";
+    searchValue: string;
+    onSearchChange: (v: string) => void;
+  }) => (
+    <div className="space-y-2">
+      <th
+        className="pb-2 pl-4 cursor-pointer hover:text-natural-primary transition-colors"
+        onClick={() => handleSort(field)}
+      >
+        {label} <SortIcon field={field} />
+      </th>
+      <tr>
+        <td className="pb-2 pl-4" colSpan={1}>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Tìm..."
+              value={searchValue}
+              onChange={(e) => {
+                onSearchChange(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-7 pr-2 py-1.5 rounded-lg border border-natural-border/50 bg-natural-light/30 text-[10px] font-medium text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none placeholder:text-slate-400"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </td>
+      </tr>
+    </div>
+  );
 
   return (
     <div className="min-w-[600px] space-y-6">
@@ -194,6 +252,7 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
             }}
             className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none appearance-none cursor-pointer"
           >
+            <option value={1}>1 ngày</option>
             <option value={3}>3 ngày</option>
             <option value={5}>5 ngày</option>
             <option value={7}>7 ngày</option>
@@ -201,24 +260,9 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
           </select>
         </div>
 
-        {/* Search */}
-        <div className="flex-1 min-w-[200px] relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo ngày, chỉ số, thời điểm..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-natural-border bg-natural-light/50 text-xs font-medium text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none placeholder:text-slate-400"
-          />
-        </div>
-
         {/* Page info */}
-        <div className="text-xs font-bold text-slate-500">
-          Trang {currentPage}/{totalPages}
+        <div className="text-xs font-bold text-slate-500 ml-auto">
+          Hiển thị {paginatedGroups.length} ngày / Trang {currentPage}/{totalPages}
         </div>
       </div>
 
@@ -246,6 +290,56 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
             </th>
             <th className="pb-2 text-center">Mức độ</th>
             <th className="pb-2 text-right pr-4">Thao tác</th>
+          </tr>
+          {/* Search row */}
+          <tr className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+            <th className="pb-2 pl-4">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm ngày..."
+                  value={dateSearch}
+                  onChange={(e) => {
+                    setDateSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full pl-7 pr-2 py-1.5 rounded-lg border border-natural-border/50 bg-natural-light/30 text-[10px] font-medium text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none placeholder:text-slate-400"
+                />
+              </div>
+            </th>
+            <th className="pb-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm thời điểm..."
+                  value={timingSearch}
+                  onChange={(e) => {
+                    setTimingSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full pl-7 pr-2 py-1.5 rounded-lg border border-natural-border/50 bg-natural-light/30 text-[10px] font-medium text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none placeholder:text-slate-400"
+                />
+              </div>
+            </th>
+            <th className="pb-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm chỉ số..."
+                  value={valueSearch}
+                  onChange={(e) => {
+                    setValueSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full pl-7 pr-2 py-1.5 rounded-lg border border-natural-border/50 bg-natural-light/30 text-[10px] font-medium text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none placeholder:text-slate-400"
+                />
+              </div>
+            </th>
+            <th className="pb-2"></th>
+            <th className="pb-2"></th>
           </tr>
         </thead>
         <tbody className="divide-y-4 divide-transparent">

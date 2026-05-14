@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Droplets } from "lucide-react";
+import { Droplets, Calendar } from "lucide-react";
 
 interface GlucoseInputProps {
   onClose: () => void;
@@ -23,6 +23,12 @@ export function GlucoseInput({ onClose, onSuccess }: GlucoseInputProps) {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
+  // Date/time fields
+  const [measureDate, setMeasureDate] = useState(new Date().toISOString().split("T")[0]);
+  const [measureTime, setMeasureTime] = useState(
+    new Date().toTimeString().slice(0, 5)
+  );
+
   const handleSave = async () => {
     const numValue = parseFloat(value);
     if (isNaN(numValue) || numValue <= 0) {
@@ -34,6 +40,9 @@ export function GlucoseInput({ onClose, onSuccess }: GlucoseInputProps) {
     setError("");
 
     try {
+      // Combine date and time into ISO string
+      const measuredAt = `${measureDate}T${measureTime}:00`;
+
       const res = await fetch("/api/glucose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -41,7 +50,7 @@ export function GlucoseInput({ onClose, onSuccess }: GlucoseInputProps) {
           value: numValue,
           timing: TIMING_MAP[timing],
           notes: notes || undefined,
-          measuredAt: new Date().toISOString(),
+          measuredAt: new Date(measuredAt).toISOString(),
         }),
       });
 
@@ -73,6 +82,33 @@ export function GlucoseInput({ onClose, onSuccess }: GlucoseInputProps) {
   return (
     <div className="space-y-8">
       <div className="space-y-6">
+        {/* Date/Time Selection */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">
+              <Calendar className="w-3 h-3 inline mr-1" />
+              Ngày đo
+            </label>
+            <input
+              type="date"
+              value={measureDate}
+              onChange={(e) => setMeasureDate(e.target.value)}
+              className="mt-1 block w-full rounded-[24px] border-natural-border bg-natural-light/50 p-5 text-sm font-bold text-natural-primary-dark focus:border-natural-primary focus:ring-0 border outline-none appearance-none cursor-pointer"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">
+              Giờ đo
+            </label>
+            <input
+              type="time"
+              value={measureTime}
+              onChange={(e) => setMeasureTime(e.target.value)}
+              className="mt-1 block w-full rounded-[24px] border-natural-border bg-natural-light/50 p-5 text-sm font-bold text-natural-primary-dark focus:border-natural-primary focus:ring-0 border outline-none appearance-none cursor-pointer"
+            />
+          </div>
+        </div>
+
         <div>
           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Lựa chọn thời điểm đo</label>
           <select
