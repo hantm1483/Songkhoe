@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Clock, Dumbbell, Check, X, Plus, Trash2, CalendarClock, Edit2, Save } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Clock, Dumbbell, Check, X, Plus, Trash2, CalendarClock, Edit2, Save, Calendar } from "lucide-react";
 import { clsx } from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -46,6 +46,38 @@ export function ActivitySchedule() {
     duration_minutes: '30',
     calories_burned: ''
   });
+
+  // Date filter state
+  const [selectedDate, setSelectedDate] = useState<string>('');
+
+  // Available dates from data
+  const availableDates = useMemo(() => {
+    const dateSet = new Set<string>();
+    schedule.forEach(item => {
+      dateSet.add(item.scheduled_date);
+    });
+    return Array.from(dateSet)
+      .sort((a, b) => b.localeCompare(a))
+      .map(value => ({
+        value,
+        label: formatDate(value)
+      }));
+  }, [schedule]);
+
+  // Filter and sort schedule
+  const filteredSchedule = useMemo(() => {
+    let items = selectedDate
+      ? schedule.filter(s => s.scheduled_date === selectedDate)
+      : schedule;
+
+    return items.sort((a, b) => {
+      const dateCompare = b.scheduled_date.localeCompare(a.scheduled_date);
+      if (dateCompare !== 0) return dateCompare;
+      const timeA = a.scheduled_time || '';
+      const timeB = b.scheduled_time || '';
+      return timeB.localeCompare(timeA);
+    });
+  }, [schedule, selectedDate]);
 
   useEffect(() => {
     loadSchedule();
@@ -223,25 +255,41 @@ export function ActivitySchedule() {
 
   const today = new Date().toISOString().split('T')[0];
   const todayStr = `${new Date().getDate().toString().padStart(2, '0')}/${(new Date().getMonth() + 1).toString().padStart(2, '0')}`;
-  const todayTasks = schedule.filter(s => s.scheduled_date === today);
+  const selectedDateStr = selectedDate ? formatDate(selectedDate) : todayStr;
+  const todayTasks = filteredSchedule.filter(s => s.scheduled_date === (selectedDate || today));
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-xl font-black text-natural-primary-dark uppercase tracking-tight">Lịch trình ngày {todayStr}</h3>
+          <h3 className="text-xl font-black text-natural-primary-dark uppercase tracking-tight">Lịch trình ngày {selectedDateStr}</h3>
           <p className="text-sm text-slate-500 font-medium font-mono">
             Đã hoàn thành {todayTasks.filter(t => t.completed).length}/{todayTasks.length} mục tiêu
           </p>
         </div>
-        {!showQuickAdd && !isAdding && (
-          <button
-            onClick={() => setShowQuickAdd(true)}
-            className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-natural-primary text-white text-xs font-black uppercase tracking-widest hover:bg-natural-primary/90 transition-all shadow-lg shadow-natural-primary/20"
-          >
-            <Plus className="h-4 w-4" /> Thêm lịch trình
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-slate-400" />
+            <select
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
+            >
+              <option value="">Tất cả ngày</option>
+              {availableDates.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          {!showQuickAdd && !isAdding && (
+            <button
+              onClick={() => setShowQuickAdd(true)}
+              className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-natural-primary text-white text-xs font-black uppercase tracking-widest hover:bg-natural-primary/90 transition-all shadow-lg shadow-natural-primary/20"
+            >
+              <Plus className="h-4 w-4" /> Thêm lịch trình
+            </button>
+          )}
+        </div>
       </div>
 
       {showQuickAdd && (
@@ -394,14 +442,14 @@ export function ActivitySchedule() {
           <div className="flex items-center justify-center py-12">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-natural-border border-t-natural-primary" />
           </div>
-        ) : schedule.length === 0 ? (
+        ) : filteredSchedule.length === 0 ? (
           <div className="py-20 text-center space-y-4 bg-natural-light/20 rounded-[40px] border border-dashed border-natural-border">
             <CalendarClock className="w-8 h-8 text-natural-primary opacity-30 mx-auto" />
             <p className="text-slate-400 font-bold">Chưa có lịch trình nào được tạo.</p>
           </div>
         ) : (
           <div className="space-y-5 relative before:absolute before:left-[21px] before:top-8 before:bottom-8 before:w-1 before:bg-natural-light/50 before:rounded-full">
-            {schedule.map((item) => (
+            {filteredSchedule.map((item) => (
               <div key={item.id} className="flex gap-6 group relative">
                 <button
                   onClick={() => toggleTask(item.id, item.completed)}
