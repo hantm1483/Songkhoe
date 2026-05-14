@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 import type { GlucoseLog } from "@/lib/supabase/database.types";
 
 interface ChartDataPoint {
@@ -65,27 +65,30 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
     loadAllData();
   }, []);
 
-  // Build filter options from data
+  // Build filter options from data - using distinct dates
   useEffect(() => {
     if (allLogs.length === 0) return;
 
-    // Build date options (unique dates)
+    // Build date options (unique dates) - DISTINCT
+    const dateSet = new Set<string>();
     const dateMap = new Map<string, string>();
+
     allLogs.forEach(log => {
       const d = new Date(log.measured_at);
       const dateKey = d.toISOString().split("T")[0];
+      dateSet.add(dateKey);
       const label = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
-      if (!dateMap.has(dateKey)) {
-        dateMap.set(dateKey, label);
-      }
+      dateMap.set(dateKey, label);
     });
+
+    const distinctDates = Array.from(dateSet);
+    distinctDates.sort((a, b) => b.localeCompare(a)); // descending
+
     setAvailableDates(
-      Array.from(dateMap.entries())
-        .map(([value, label]) => ({ value, label }))
-        .sort((a, b) => b.value.localeCompare(a.value))
+      distinctDates.map(value => ({ value, label: dateMap.get(value) || value }))
     );
     if (availableDates.length > 0 && !selectedDate) {
-      setSelectedDate(availableDates[0].value);
+      setSelectedDate(distinctDates[0]);
     }
 
     // Build week options
@@ -93,7 +96,6 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
     allLogs.forEach(log => {
       const d = new Date(log.measured_at);
       const year = d.getFullYear();
-      const month = d.getMonth();
       const firstDayOfYear = new Date(year, 0, 1);
       const pastDays = (d.getTime() - firstDayOfYear.getTime()) / (1000 * 60 * 60 * 24);
       const weekNum = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
@@ -141,43 +143,55 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
 
   // Load chart data based on selection
   useEffect(() => {
-    async function loadData() {
-      if (allLogs.length === 0) return;
+    if (allLogs.length === 0) return;
 
-      setLoading(true);
-      try {
-        let filteredLogs: GlucoseLog[] = [];
+    setLoading(true);
+    try {
+      let filteredLogs: GlucoseLog[] = [];
 
-        if (viewMode === "day" && selectedDate) {
-          filteredLogs = allLogs.filter(log => log.measured_at.startsWith(selectedDate));
-        } else if (viewMode === "week" && selectedWeek) {
-          const weekOption = availableWeeks.find(w => w.value === selectedWeek);
-          if (weekOption) {
-            filteredLogs = allLogs.filter(log => {
-              const logDate = log.measured_at.split("T")[0];
-              return logDate >= weekOption.startDate && logDate <= weekOption.endDate;
-            });
-          }
-        } else if (viewMode === "month" && selectedMonth) {
-          filteredLogs = allLogs.filter(log => log.measured_at.startsWith(selectedMonth));
+      if (viewMode === "day" && selectedDate) {
+        filteredLogs = allLogs.filter(log => log.measured_at.startsWith(selectedDate));
+      } else if (viewMode === "week" && selectedWeek) {
+        const weekOption = availableWeeks.find(w => w.value === selectedWeek);
+        if (weekOption) {
+          filteredLogs = allLogs.filter(log => {
+            const logDate = log.measured_at.split("T")[0];
+            return logDate >= weekOption.startDate && logDate <= weekOption.endDate;
+          });
         }
+      } else if (viewMode === "month" && selectedMonth) {
+        filteredLogs = allLogs.filter(log => log.measured_at.startsWith(selectedMonth));
+      }
 
-        const formatted = filteredLogs.map(log => {
-          const d = new Date(log.measured_at);
+      const formatted = filteredLogs.map(log => {
+        const d = new Date(log.measured_at);
+        if (viewMode === "day") {
+          // Show hour:minute for day view
+          return {
+            date: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
+            value: log.value,
+          };
+        } else if (viewMode === "week") {
+          // Show day + hour for week view
           return {
             date: `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
             value: log.value,
           };
-        });
+        } else {
+          // Month view - show day
+          return {
+            date: `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`,
+            value: log.value,
+          };
+        }
+      });
 
-        setData(formatted.reverse());
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+      setData(formatted.reverse());
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    loadData();
   }, [viewMode, selectedDate, selectedWeek, selectedMonth, allLogs, availableWeeks, refreshTrigger]);
 
   const average = data.length > 0
@@ -217,6 +231,14 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
       </div>
     );
   }
+
+  // Calculate interval for XAxis based on data length
+  const xAxisInterval = useMemo(() => {
+    if (data.length <= 7) return 0;
+    if (data.length <= 14) return 1;
+    if (data.length <= 30) return 3;
+    return 7;
+  }, [data.length]);
 
   return (
     <div className="space-y-8">
@@ -344,7 +366,7 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
                 tickLine={false}
                 tick={{ fontSize: 10, fill: '#6B705C', fontWeight: 600 }}
                 dy={10}
-                interval={viewMode === "month" ? 4 : viewMode === "week" ? 1 : 0}
+                interval={xAxisInterval}
               />
               <YAxis domain={[3, 12]} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B705C', fontWeight: 600 }} dx={-10} />
               <Tooltip

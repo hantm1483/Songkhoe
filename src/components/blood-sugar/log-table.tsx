@@ -198,76 +198,10 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
     );
   };
 
-  const ColumnHeader = ({
-    label,
-    field,
-    searchValue,
-    onSearchChange,
-  }: {
-    label: string;
-    field: "measured_at" | "value" | "timing";
-    searchValue: string;
-    onSearchChange: (v: string) => void;
-  }) => (
-    <div className="space-y-2">
-      <th
-        className="pb-2 pl-4 cursor-pointer hover:text-natural-primary transition-colors"
-        onClick={() => handleSort(field)}
-      >
-        {label} <SortIcon field={field} />
-      </th>
-      <tr>
-        <td className="pb-2 pl-4" colSpan={1}>
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Tìm..."
-              value={searchValue}
-              onChange={(e) => {
-                onSearchChange(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-7 pr-2 py-1.5 rounded-lg border border-natural-border/50 bg-natural-light/30 text-[10px] font-medium text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none placeholder:text-slate-400"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        </td>
-      </tr>
-    </div>
-  );
-
   return (
-    <div className="min-w-[600px] space-y-6">
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-4 pb-4 border-b border-natural-border">
-        {/* Days per page selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hiển thị:</span>
-          <select
-            value={daysPerPage}
-            onChange={(e) => {
-              setDaysPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none appearance-none cursor-pointer"
-          >
-            <option value={1}>1 ngày</option>
-            <option value={3}>3 ngày</option>
-            <option value={5}>5 ngày</option>
-            <option value={7}>7 ngày</option>
-            <option value={10}>10 ngày</option>
-          </select>
-        </div>
-
-        {/* Page info */}
-        <div className="text-xs font-bold text-slate-500 ml-auto">
-          Hiển thị {paginatedGroups.length} ngày / Trang {currentPage}/{totalPages}
-        </div>
-      </div>
-
-      {/* Table */}
-      <table className="w-full text-left border-separate border-spacing-y-4">
+    <div className="min-w-[600px] space-y-4">
+      {/* Table - compact rows */}
+      <table className="w-full text-left border-separate border-spacing-y-2">
         <thead>
           <tr className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
             <th
@@ -298,13 +232,13 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Tìm ngày..."
+                  placeholder="Tìm..."
                   value={dateSearch}
                   onChange={(e) => {
                     setDateSearch(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="w-full pl-7 pr-2 py-1.5 rounded-lg border border-natural-border/50 bg-natural-light/30 text-[10px] font-medium text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none placeholder:text-slate-400"
+                  className="w-full pl-7 pr-2 py-1 rounded-lg border border-natural-border/50 bg-natural-light/30 text-[10px] font-medium text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none placeholder:text-slate-400"
                 />
               </div>
             </th>
@@ -313,13 +247,13 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Tìm thời điểm..."
+                  placeholder="Tìm..."
                   value={timingSearch}
                   onChange={(e) => {
                     setTimingSearch(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="w-full pl-7 pr-2 py-1.5 rounded-lg border border-natural-border/50 bg-natural-light/30 text-[10px] font-medium text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none placeholder:text-slate-400"
+                  className="w-full pl-7 pr-2 py-1 rounded-lg border border-natural-border/50 bg-natural-light/30 text-[10px] font-medium text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none placeholder:text-slate-400"
                 />
               </div>
             </th>
@@ -328,13 +262,13 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Tìm chỉ số..."
+                  placeholder="Tìm..."
                   value={valueSearch}
                   onChange={(e) => {
                     setValueSearch(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="w-full pl-7 pr-2 py-1.5 rounded-lg border border-natural-border/50 bg-natural-light/30 text-[10px] font-medium text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none placeholder:text-slate-400"
+                  className="w-full pl-7 pr-2 py-1 rounded-lg border border-natural-border/50 bg-natural-light/30 text-[10px] font-medium text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none placeholder:text-slate-400"
                 />
               </div>
             </th>
@@ -342,48 +276,46 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
             <th className="pb-2"></th>
           </tr>
         </thead>
-        <tbody className="divide-y-4 divide-transparent">
+        <tbody className="divide-y-2 divide-transparent">
           {paginatedGroups.map(([dateKey, dayLogs]) =>
             dayLogs.map((log) => {
               const status = getStatusLabel(log.value);
               return (
                 <tr
                   key={log.id}
-                  className="group bg-natural-light/20 hover:bg-white transition-all rounded-[24px] shadow-sm hover:shadow-md border border-transparent hover:border-natural-primary/20"
+                  className="group bg-natural-light/10 hover:bg-natural-light/30 transition-all rounded-xl border border-transparent hover:border-natural-primary/20"
                 >
-                  <td className="py-5 pl-6 rounded-l-[24px]">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="w-4 h-4 text-natural-primary" />
-                      <div>
-                        <span className="font-bold text-natural-primary-dark">{formatDate(log.measured_at)}</span>
-                        <span className="ml-2 text-[10px] font-mono text-slate-400">{formatTime(log.measured_at)}</span>
-                      </div>
+                  <td className="py-3 pl-6 rounded-l-xl">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-3 h-3 text-natural-primary" />
+                      <span className="font-bold text-natural-primary-dark text-xs">{formatDate(log.measured_at)}</span>
+                      <span className="text-[10px] font-mono text-slate-400">{formatTime(log.measured_at)}</span>
                     </div>
                   </td>
-                  <td className="py-5">
-                    <span className="text-xs font-black text-slate-500 uppercase tracking-tighter">{getTimingLabel(log.timing)}</span>
+                  <td className="py-3">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{getTimingLabel(log.timing)}</span>
                   </td>
-                  <td className="py-5">
+                  <td className="py-3">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black text-natural-primary-dark leading-none">{log.value}</span>
-                      <span className="text-[9px] font-black text-slate-400 uppercase">mmol/L</span>
+                      <span className="text-lg font-black text-natural-primary-dark leading-none">{log.value}</span>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase">mmol/L</span>
                     </div>
                   </td>
-                  <td className="py-5 text-center">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${status.className}`}>
+                  <td className="py-3 text-center">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-widest ${status.className}`}>
                       {status.label}
                     </span>
                   </td>
-                  <td className="py-5 pr-6 text-right rounded-r-[24px]">
-                    <div className="flex items-center justify-end gap-2">
-                      <button className="p-2.5 rounded-xl bg-white border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary transition-all shadow-sm">
-                        <Edit2 className="w-4 h-4" />
+                  <td className="py-3 pr-6 text-right rounded-r-xl">
+                    <div className="flex items-center justify-end gap-1">
+                      <button className="p-1.5 rounded-lg bg-white border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary transition-all shadow-sm">
+                        <Edit2 className="w-3 h-3" />
                       </button>
                       <button
                         onClick={() => handleDelete(log.id)}
-                        className="p-2.5 rounded-xl bg-white border border-natural-border text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm"
+                        className="p-1.5 rounded-lg bg-white border border-natural-border text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
                   </td>
@@ -394,22 +326,43 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
         </tbody>
       </table>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-center gap-4 pt-4">
-        <button
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="p-3 rounded-full bg-white border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
+      {/* Controls moved below table, near pagination */}
+      <div className="flex items-center justify-between pt-4 border-t border-natural-border">
+        <div className="flex items-center gap-3">
+          <select
+            value={daysPerPage}
+            onChange={(e) => {
+              setDaysPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none appearance-none cursor-pointer"
+          >
+            <option value={1}>1 ngày</option>
+            <option value={3}>3 ngày</option>
+            <option value={5}>5 ngày</option>
+            <option value={7}>7 ngày</option>
+            <option value={10}>10 ngày</option>
+          </select>
+          <span className="text-xs font-medium text-slate-500">
+            Trang {currentPage}/{totalPages}
+          </span>
+        </div>
 
+        {/* Pagination */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg bg-white border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
           {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
             <button
               key={page}
               onClick={() => handlePageChange(page)}
-              className={`w-10 h-10 rounded-full text-sm font-bold transition-all ${
+              className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
                 page === currentPage
                   ? "bg-natural-primary text-white shadow-md"
                   : "bg-white border border-natural-border text-slate-500 hover:border-natural-primary hover:text-natural-primary"
@@ -418,15 +371,15 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
               {page}
             </button>
           ))}
-        </div>
 
-        <button
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="p-3 rounded-full bg-white border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-lg bg-white border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
