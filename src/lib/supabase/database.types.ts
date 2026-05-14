@@ -1,9 +1,20 @@
 export type Timing = "fasting" | "before_meal" | "after_meal" | "bedtime";
 export type Frequency = "daily" | "twice_daily" | "weekly" | "as_needed";
 export type GiLevel = "low" | "medium" | "high";
-export type LabResultType = "hba1c" | "cholesterol" | "creatinine" | "other";
+export type LabResultType = "hba1c" | "glucose" | "blood_pressure" | "eye_exam" | "kidney" | "cholesterol" | "creatinine" | "other";
 export type MedicationStatus = "taken" | "skipped" | "delayed";
 export type MessageRole = "user" | "assistant";
+
+export interface ScreeningCatalog {
+  id: string;
+  user_id: string | null;
+  content: string;
+  target: string | null;
+  frequency: string | null;
+  meaning: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Profile {
   id: string;
@@ -155,6 +166,9 @@ export interface RateLimit {
 export type ProfileInsert = Omit<Profile, "created_at"> & { avatar_url?: string | null };
 export type ProfileUpdate = Partial<Omit<Profile, "id">>;
 
+export type ScreeningCatalogInsert = Omit<ScreeningCatalog, "id" | "created_at" | "updated_at">;
+export type ScreeningCatalogUpdate = Partial<Omit<ScreeningCatalog, "id">>;
+
 export type GlucoseLogInsert = Omit<GlucoseLog, "id" | "created_at" | "updated_at">;
 export type GlucoseLogUpdate = Partial<Omit<GlucoseLog, "id">>;
 
@@ -204,6 +218,6 @@ export type RateLimitUpdate = Partial<Omit<RateLimit, "id">>;
 export const TIMING_VALUES = ["fasting", "before_meal", "after_meal", "bedtime"] as const;
 export const FREQUENCY_VALUES = ["daily", "twice_daily", "weekly", "as_needed"] as const;
 export const GI_LEVEL_VALUES = ["low", "medium", "high"] as const;
-export const LAB_RESULT_TYPE_VALUES = ["hba1c", "cholesterol", "creatinine", "other"] as const;
+export const LAB_RESULT_TYPE_VALUES = ["hba1c", "glucose", "blood_pressure", "eye_exam", "kidney", "cholesterol", "creatinine", "other"] as const;
 export const MEDICATION_STATUS_VALUES = ["taken", "skipped", "delayed"] as const;
 export const MESSAGE_ROLE_VALUES = ["user", "assistant"] as const;

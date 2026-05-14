@@ -198,7 +198,7 @@ export function validateMealInput(data: unknown): {
 // Lab Result Validation
 // =====================================================
 
-export const LAB_RESULT_TYPE_OPTIONS: LabResultType[] = ["hba1c", "cholesterol", "creatinine", "other"];
+export const LAB_RESULT_TYPE_OPTIONS: LabResultType[] = ["hba1c", "glucose", "blood_pressure", "eye_exam", "kidney", "cholesterol", "creatinine", "other"];
 
 export interface LabResultInput {
   type: LabResultType;
@@ -251,6 +251,59 @@ export function validateLabResultInput(data: unknown): {
       unit: input.unit as string | undefined,
       recordedAt: input.recordedAt as string | undefined,
       notes: input.notes as string | undefined,
+    },
+  };
+}
+
+// =====================================================
+// Screening Catalog Validation
+// =====================================================
+
+export interface ScreeningCatalogInput {
+  content: string;
+  target?: string;
+  frequency?: string;
+  meaning?: string;
+}
+
+export function validateScreeningCatalogInput(data: unknown): {
+  success: boolean;
+  data?: ScreeningCatalogInput;
+  error?: string;
+} {
+  if (typeof data !== "object" || data === null) {
+    return { success: false, error: "Dữ liệu không hợp lệ" };
+  }
+
+  const input = data as Record<string, unknown>;
+
+  if (typeof input.content !== "string" || input.content.trim() === "") {
+    return { success: false, error: "Nội dung tầm soát là bắt buộc" };
+  }
+
+  if (input.content.length > 255) {
+    return { success: false, error: "Nội dung tầm soát quá dài (tối đa 255 ký tự)" };
+  }
+
+  if (input.target !== undefined && typeof input.target !== "string") {
+    return { success: false, error: "Ngưỡng mục tiêu phải là chuỗi văn bản" };
+  }
+
+  if (input.frequency !== undefined && typeof input.frequency !== "string") {
+    return { success: false, error: "Tần suất phải là chuỗi văn bản" };
+  }
+
+  if (input.meaning !== undefined && typeof input.meaning !== "string") {
+    return { success: false, error: "Ý nghĩa phải là chuỗi văn bản" };
+  }
+
+  return {
+    success: true,
+    data: {
+      content: input.content as string,
+      target: input.target as string | undefined,
+      frequency: input.frequency as string | undefined,
+      meaning: input.meaning as string | undefined,
     },
   };
 }

@@ -203,7 +203,14 @@ export function ScreeningLog() {
   const handleEdit = (log: LabResult) => {
     if (isCompleted(log)) return;
     setEditingId(log.id);
-    const notesObj = log.notes ? JSON.parse(log.notes) : {};
+    let notesObj: Record<string, string> = {};
+    try {
+      if (log.notes) {
+        notesObj = JSON.parse(log.notes);
+      }
+    } catch {
+      notesObj = {};
+    }
     setEditData({
       ...log,
       customContent: notesObj.customContent || "",
@@ -225,7 +232,14 @@ export function ScreeningLog() {
     }
 
     // Preserve existing completed status
-    const existingNotes = editData.notes ? JSON.parse(editData.notes) : {};
+    let existingNotes: Record<string, string> = {};
+    try {
+      if (editData.notes) {
+        existingNotes = JSON.parse(editData.notes);
+      }
+    } catch {
+      existingNotes = {};
+    }
     const notesObj: Record<string, string> = {};
     if (existingNotes.completed) notesObj.completed = existingNotes.completed;
     if (editData.location) notesObj.location = editData.location;
@@ -270,7 +284,7 @@ export function ScreeningLog() {
       setError("");
       try {
         const res = await fetch(`/api/lab-results/${editData.id}`, {
-          method: "PUT",
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: editData.type,
@@ -382,7 +396,7 @@ export function ScreeningLog() {
       const newNotes = JSON.stringify(notesObj);
 
       const res = await fetch(`/api/lab-results/${log.id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes: newNotes }),
       });
