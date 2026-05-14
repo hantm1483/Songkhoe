@@ -231,10 +231,20 @@ export function NutritionPlan() {
     setSaving(true);
     try {
       const dateStr = addDate;
+
+      // Check existing meals on that date to avoid duplicates
+      const existingOnDate = mealHistory.filter(m => {
+        const d = parseDate(m.time);
+        return d && d.toISOString().split("T")[0] === dateStr;
+      });
+
       const promises: Promise<Response | null>[] = [];
       sessionsToSave.forEach(session => {
         newMealRows[session].forEach(row => {
           if (!row.dish && !row.calories) return;
+          // Skip if same dish name already exists on this date
+          const exists = existingOnDate.some(m => m.name === row.dish);
+          if (exists) return;
           const time = `${dateStr}T${row.time}:00`;
           promises.push(fetch("/api/meals", {
             method: "POST",
