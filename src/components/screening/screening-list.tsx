@@ -547,7 +547,7 @@ export function ScreeningLog() {
                       </td>
                       <td className="py-4 px-2">
                         <select
-                          value={editData.type === 'hba1c' ? 'Tốt' : 'Bình thường'}
+                          value={getLevel(editData.value || 0, editData.type as string | null).label}
                           className="w-full text-[10px] font-black p-2 rounded-lg bg-white border border-natural-border uppercase"
                         >
                           <option>An toàn</option>

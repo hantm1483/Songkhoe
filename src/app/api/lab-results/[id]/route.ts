@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { successResponse, errorResponse, validationError, unauthorizedError, notFoundError, databaseError, parseBody } from "@/lib/api-response";
-import { validateLabResultInput, type LabResultInput } from "@/lib/validations";
+import { successResponse, errorResponse, validationError, unauthorizedError, notFoundError, databaseError } from "@/lib/api-response";
+import { LAB_RESULT_TYPE_OPTIONS } from "@/lib/validations";
 
 /**
  * GET /api/lab-results/[id] - Get single lab result
@@ -37,7 +37,7 @@ export async function GET(
 }
 
 /**
- * PATCH /api/lab-results/[id] - Update lab result
+ * PATCH /api/lab-results/[id] - Update lab result (partial update supported)
  */
 export async function PATCH(
   request: NextRequest,
@@ -63,28 +63,53 @@ export async function PATCH(
     return NextResponse.json(notFoundError("Kết quả xét nghiệm"), { status: 404 });
   }
 
-  const body = await parseBody<LabResultInput>(request);
-  if (!body) {
-    return NextResponse.json(validationError("Dữ liệu không hợp lệ"), { status: 400 });
+  const body = await request.json();
+
+  // Partial update: only validate provided fields
+  const updateData: Record<string, unknown> = {};
+  const errors: string[] = [];
+
+  if (body.type !== undefined) {
+    if (!LAB_RESULT_TYPE_OPTIONS.includes(body.type)) {
+      errors.push("Loại xét nghiệm không hợp lệ");
+    } else {
+      updateData.type = body.type;
+    }
   }
 
-  const validation = validateLabResultInput(body);
-  if (!validation.success) {
-    return NextResponse.json(validationError(validation.error!), { status: 400 });
+  if (body.value !== undefined) {
+    if (typeof body.value !== "number" || body.value < 0 || body.value > 10000) {
+      errors.push("Giá trị xét nghiệm không hợp lệ");
+    } else {
+      updateData.value = body.value;
+    }
   }
 
-  const { type, value, unit, recordedAt, notes } = validation.data!;
+  if (body.unit !== undefined) {
+    updateData.unit = typeof body.unit === "string" ? body.unit : null;
+  }
+
+  if (body.recordedAt !== undefined) {
+    updateData.recorded_at = typeof body.recordedAt === "string" ? body.recordedAt : null;
+  }
+
+  if (body.notes !== undefined) {
+    updateData.notes = typeof body.notes === "string" ? body.notes : null;
+  }
+
+  if (errors.length > 0) {
+    return NextResponse.json(validationError(errors.join(", ")), { status: 400 });
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json(successResponse(existing));
+  }
+
+  updateData.updated_at = new Date().toISOString();
 
   const { data, error } = await supabase
     .from("lab_results")
-    .update({
-      type,
-      value,
-      unit: unit || null,
-      recorded_at: recordedAt || null,
-      notes: notes || null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq("id", id)
     .select()
     .single();
