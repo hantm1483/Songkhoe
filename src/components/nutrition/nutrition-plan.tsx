@@ -75,12 +75,40 @@ export function NutritionPlan() {
 
   // Add meal form state
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newMeals, setNewMeals] = useState<Record<string, { time: string; dish: string; calories: string }>>({
-    "Sáng": { time: "07:00", dish: "", calories: "" },
-    "Trưa": { time: "12:00", dish: "", calories: "" },
-    "Chiều": { time: "18:00", dish: "", calories: "" },
+  const [addDate, setAddDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newMealRows, setNewMealRows] = useState<Record<string, { time: string; dish: string; calories: string }[]>>({
+    "Sáng": [{ time: "07:00", dish: "", calories: "" }],
+    "Trưa": [{ time: "12:00", dish: "", calories: "" }],
+    "Chiều": [{ time: "18:00", dish: "", calories: "" }],
   });
   const [saving, setSaving] = useState(false);
+
+  const addMealRow = (session: string) => {
+    const defaultTimes: Record<string, string> = { "Sáng": "07:00", "Trưa": "12:00", "Chiều": "18:00" };
+    setNewMealRows(prev => ({
+      ...prev,
+      [session]: [...prev[session], { time: defaultTimes[session] || "12:00", dish: "", calories: "" }],
+    }));
+  };
+
+  const removeMealRow = (session: string, index: number) => {
+    setNewMealRows(prev => ({
+      ...prev,
+      [session]: prev[session].filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateMealRow = (session: string, index: number, field: "time" | "dish" | "calories", value: string) => {
+    setNewMealRows(prev => ({
+      ...prev,
+      [session]: prev[session].map((row, i) => i === index ? { ...row, [field]: value } : row),
+    }));
+  };
+
+  const getDefaultTime = (session: string): string => {
+    const times: Record<string, string> = { "Sáng": "07:00", "Trưa": "12:00", "Chiều": "18:00" };
+    return times[session] || "12:00";
+  };
 
   // Inline edit state - keyed by meal id
   const [editingMeals, setEditingMeals] = useState<Record<string, { name: string; calories: string }>>({});
@@ -184,16 +212,17 @@ export function NutritionPlan() {
     }
   };
 
-  const handleUpdateNewMeal = (session: string, field: "time" | "dish" | "calories", value: string) => {
-    setNewMeals(prev => ({
+  const handleUpdateNewMealRow = (session: string, index: number, field: "time" | "dish" | "calories", value: string) => {
+    setNewMealRows(prev => ({
       ...prev,
-      [session]: { ...prev[session], [field]: value },
+      [session]: prev[session].map((row, i) => i === index ? { ...row, [field]: value } : row),
     }));
   };
 
   const handleSaveMeals = async () => {
-    // Filter sessions that have at least dish or calories filled
-    const sessionsToSave = SESSION_TYPES.filter(s => newMeals[s].dish || newMeals[s].calories);
+    const sessionsToSave = SESSION_TYPES.filter(s =>
+      newMealRows[s].some(r => r.dish || r.calories)
+    );
     if (sessionsToSave.length === 0) {
       setShowAddForm(false);
       return;
@@ -201,30 +230,31 @@ export function NutritionPlan() {
 
     setSaving(true);
     try {
-      const dateStr = selectedDate || new Date().toISOString().split("T")[0];
-      const promises = sessionsToSave.map(session => {
-        const row = newMeals[session];
-        if (!row.dish && !row.calories) return null;
-        const time = `${dateStr}T${row.time}:00`;
-        return fetch("/api/meals", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: row.dish,
-            notes: row.calories ? `${row.calories} kcal` : null,
-            time: time,
-          }),
+      const dateStr = addDate;
+      const promises: Promise<Response | null>[] = [];
+      sessionsToSave.forEach(session => {
+        newMealRows[session].forEach(row => {
+          if (!row.dish && !row.calories) return;
+          const time = `${dateStr}T${row.time}:00`;
+          promises.push(fetch("/api/meals", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: row.dish,
+              notes: row.calories ? `${row.calories} kcal` : null,
+              time: time,
+            }),
+          }));
         });
       });
 
       await Promise.all(promises.filter(Boolean));
-      // Reset form
-      setNewMeals({
-        "Sáng": { time: "07:00", dish: "", calories: "" },
-        "Trưa": { time: "12:00", dish: "", calories: "" },
-        "Chiều": { time: "18:00", dish: "", calories: "" },
-      });
       setShowAddForm(false);
+      setNewMealRows({
+        "Sáng": [{ time: "07:00", dish: "", calories: "" }],
+        "Trưa": [{ time: "12:00", dish: "", calories: "" }],
+        "Chiều": [{ time: "18:00", dish: "", calories: "" }],
+      });
       await loadMeals();
     } catch (err) {
       console.error(err);
@@ -236,10 +266,10 @@ export function NutritionPlan() {
 
   const handleCancelForm = () => {
     setShowAddForm(false);
-    setNewMeals({
-      "Sáng": { time: "07:00", dish: "", calories: "" },
-      "Trưa": { time: "12:00", dish: "", calories: "" },
-      "Chiều": { time: "18:00", dish: "", calories: "" },
+    setNewMealRows({
+      "Sáng": [{ time: "07:00", dish: "", calories: "" }],
+      "Trưa": [{ time: "12:00", dish: "", calories: "" }],
+      "Chiều": [{ time: "18:00", dish: "", calories: "" }],
     });
   };
 
@@ -561,51 +591,80 @@ export function NutritionPlan() {
           <div className="rounded-[32px] bg-white border-2 border-natural-primary shadow-xl p-6 space-y-6">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-black text-natural-primary uppercase tracking-widest">Thêm bữa ăn mới</h4>
+              <div className="flex items-center gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Ngày:</label>
+                <input
+                  type="date"
+                  value={addDate}
+                  onChange={(e) => setAddDate(e.target.value)}
+                  className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-3 divide-x divide-natural-border/30 gap-4">
               {SESSION_TYPES.map(session => {
-                const row = newMeals[session];
+                const rows = newMealRows[session];
+                const headerColor = session === "Sáng" ? "bg-amber-50 text-amber-600 border-amber-100" :
+                  session === "Trưa" ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                    "bg-rose-50 text-rose-600 border-rose-100";
+
                 return (
                   <div key={session} className="space-y-3">
                     <div className={clsx(
-                      "text-center p-2 rounded-xl border",
-                      session === "Sáng" ? "bg-amber-50 text-amber-600 border-amber-100" :
-                        session === "Trưa" ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                          "bg-rose-50 text-rose-600 border-rose-100"
+                      "flex items-center justify-between p-2 rounded-xl border",
+                      headerColor
                     )}>
                       <span className="text-[10px] font-black uppercase tracking-widest">{session}</span>
+                      <button
+                        onClick={() => addMealRow(session)}
+                        className="p-1 rounded-full hover:bg-black/10 transition-all"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
                     </div>
                     <div className="space-y-2">
-                      <div>
-                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Giờ</label>
-                        <input
-                          type="time"
-                          value={row.time}
-                          onChange={(e) => handleUpdateNewMeal(session, "time", e.target.value)}
-                          className="w-full text-[11px] font-bold p-2 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
-                        />
+                      {/* Column headers */}
+                      <div className="grid grid-cols-[auto_1fr_auto] gap-1.5 px-1">
+                        <span className="text-[8px] font-black text-slate-400 uppercase w-12">Giờ</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase">Món ăn</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase w-14 text-right">Calo</span>
                       </div>
-                      <div>
-                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Món ăn</label>
-                        <input
-                          type="text"
-                          value={row.dish}
-                          onChange={(e) => handleUpdateNewMeal(session, "dish", e.target.value)}
-                          placeholder="Tên món..."
-                          className="w-full text-[11px] font-bold p-2 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Calo</label>
-                        <input
-                          type="number"
-                          value={row.calories}
-                          onChange={(e) => handleUpdateNewMeal(session, "calories", e.target.value)}
-                          placeholder="Kcal"
-                          className="w-full text-[11px] font-bold p-2 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
-                        />
-                      </div>
+                      {/* Meal rows */}
+                      {rows.map((row, idx) => (
+                        <div key={idx} className="grid grid-cols-[auto_1fr_auto] gap-1.5 items-center">
+                          <input
+                            type="time"
+                            value={row.time}
+                            onChange={(e) => handleUpdateNewMealRow(session, idx, "time", e.target.value)}
+                            className="w-12 text-[10px] font-bold p-1.5 rounded-lg bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                          />
+                          <input
+                            type="text"
+                            value={row.dish}
+                            onChange={(e) => handleUpdateNewMealRow(session, idx, "dish", e.target.value)}
+                            placeholder="Tên món..."
+                            className="text-[11px] font-bold p-1.5 rounded-lg bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                          />
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              value={row.calories}
+                              onChange={(e) => handleUpdateNewMealRow(session, idx, "calories", e.target.value)}
+                              placeholder="Kcal"
+                              className="w-14 text-[10px] font-bold p-1.5 rounded-lg bg-natural-light border border-natural-border outline-none focus:border-natural-primary text-right"
+                            />
+                            {rows.length > 1 && (
+                              <button
+                                onClick={() => removeMealRow(session, idx)}
+                                className="p-1 rounded text-rose-400 hover:bg-rose-50 transition-all"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );
