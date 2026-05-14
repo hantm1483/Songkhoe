@@ -34,18 +34,10 @@ type ViewMode = "day" | "week" | "month";
 const PAGE_SIZE = 5;
 const SESSION_TYPES = ["Sáng", "Trưa", "Chiều"];
 
-function formatDateLabel(dateStr: string): string {
-  const d = parseDate(dateStr);
-  if (!d) return dateStr;
-  return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
-}
-
 function parseDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  // Try full ISO format first
   let d = new Date(dateStr);
   if (!isNaN(d.getTime())) return d;
-  // Try just time string (HH:mm) - use today's date
   if (/^\d{1,2}:\d{2}$/.test(dateStr)) {
     const [h, m] = dateStr.split(":").map(Number);
     d = new Date();
@@ -55,16 +47,16 @@ function parseDate(dateStr: string): Date | null {
   return null;
 }
 
+function formatDateLabel(dateStr: string): string {
+  const d = parseDate(dateStr);
+  if (!d) return dateStr;
+  return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
+}
+
 function getSessionFromHour(hour: number): string {
   if (hour >= 5 && hour < 12) return "Sáng";
   if (hour >= 12 && hour < 17) return "Trưa";
   return "Chiều";
-}
-
-function getSessionFromDate(dateStr: string): string {
-  const d = parseDate(dateStr);
-  if (!d) return "Chiều";
-  return getSessionFromHour(d.getHours());
 }
 
 function parseCalories(notes: string | null): number {
@@ -77,18 +69,12 @@ export function NutritionPlan() {
   const [mealHistory, setMealHistory] = useState<MealEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Header state
+  // Single view mode - shared by header + history
   const [viewMode, setViewMode] = useState<ViewMode>("day");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedWeek, setSelectedWeek] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
-
-  // History section state
-  const [historyViewMode, setHistoryViewMode] = useState<ViewMode>("day");
-  const [historySelectedDate, setHistorySelectedDate] = useState<string>("");
-  const [historySelectedWeek, setHistorySelectedWeek] = useState<string>("");
-  const [historySelectedMonth, setHistorySelectedMonth] = useState<string>("");
-  const [historyPage, setHistoryPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Form state
   const [isAdding, setIsAdding] = useState(false);
@@ -125,7 +111,9 @@ export function NutritionPlan() {
 
     const dateMap = new Map<string, string>();
     mealHistory.forEach(meal => {
-      const dateKey = meal.time.split("T")[0];
+      const d = parseDate(meal.time);
+      if (!d) return;
+      const dateKey = d.toISOString().split("T")[0];
       if (!dateMap.has(dateKey)) {
         dateMap.set(dateKey, formatDateLabel(dateKey));
       }
@@ -136,8 +124,8 @@ export function NutritionPlan() {
 
     const weekMap = new Map<string, WeekOption>();
     mealHistory.forEach(meal => {
-      const d = new Date(meal.time);
-      if (isNaN(d.getTime())) return;
+      const d = parseDate(meal.time);
+      if (!d) return;
       const year = d.getFullYear();
       const firstDayOfYear = new Date(year, 0, 1);
       const pastDays = (d.getTime() - firstDayOfYear.getTime()) / (1000 * 60 * 60 * 24);
@@ -160,8 +148,8 @@ export function NutritionPlan() {
 
     const monthMap = new Map<string, MonthOption>();
     mealHistory.forEach(meal => {
-      const d = new Date(meal.time);
-      if (isNaN(d.getTime())) return;
+      const d = parseDate(meal.time);
+      if (!d) return;
       const monthKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
       if (!monthMap.has(monthKey)) {
         monthMap.set(monthKey, {
@@ -175,10 +163,10 @@ export function NutritionPlan() {
     return { availableDates: dates, availableWeeks: weeks, availableMonths: months };
   }, [mealHistory]);
 
-  // Set header defaults
+  // Set defaults when options become available
   useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
     if (!selectedDate && availableDates.length > 0) {
-      const today = new Date().toISOString().split("T")[0];
       const todayExists = availableDates.some(d => d.value === today);
       setSelectedDate(todayExists ? today : availableDates[0].value);
     }
@@ -189,21 +177,6 @@ export function NutritionPlan() {
       setSelectedMonth(availableMonths[0].value);
     }
   }, [availableDates, availableWeeks, availableMonths, selectedDate, selectedWeek, selectedMonth]);
-
-  // Set history defaults
-  useEffect(() => {
-    if (!historySelectedDate && availableDates.length > 0) {
-      const today = new Date().toISOString().split("T")[0];
-      const todayExists = availableDates.some(d => d.value === today);
-      setHistorySelectedDate(todayExists ? today : availableDates[0].value);
-    }
-    if (!historySelectedWeek && availableWeeks.length > 0) {
-      setHistorySelectedWeek(availableWeeks[0].value);
-    }
-    if (!historySelectedMonth && availableMonths.length > 0) {
-      setHistorySelectedMonth(availableMonths[0].value);
-    }
-  }, [availableDates, availableWeeks, availableMonths, historySelectedDate, historySelectedWeek, historySelectedMonth]);
 
   const handleAddDishRow = () => {
     setSessionDishes([...sessionDishes, { dish: "", calories: "" }]);
@@ -308,15 +281,14 @@ export function NutritionPlan() {
     }
   };
 
-  // Filter header meals
+  // Filter meals by view mode - used by BOTH header and history
   const filteredMeals = useMemo(() => {
     if (mealHistory.length === 0) return [];
     if (viewMode === "day" && selectedDate) {
       return mealHistory.filter(m => {
         const d = parseDate(m.time);
         if (!d) return false;
-        const datePart = d.toISOString().split("T")[0];
-        return datePart === selectedDate;
+        return d.toISOString().split("T")[0] === selectedDate;
       });
     }
     if (viewMode === "week" && selectedWeek) {
@@ -334,64 +306,32 @@ export function NutritionPlan() {
       return mealHistory.filter(m => {
         const d = parseDate(m.time);
         if (!d) return false;
-        const monthPart = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
-        return monthPart === selectedMonth;
+        return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}` === selectedMonth;
       });
     }
     return mealHistory;
   }, [viewMode, selectedDate, selectedWeek, selectedMonth, mealHistory, availableWeeks]);
 
-  // Filter history meals (separate from header)
-  const historyFilteredMeals = useMemo(() => {
-    if (mealHistory.length === 0) return [];
-    if (historyViewMode === "day" && historySelectedDate) {
-      return mealHistory.filter(m => {
-        const d = parseDate(m.time);
-        if (!d) return false;
-        const datePart = d.toISOString().split("T")[0];
-        return datePart === historySelectedDate;
-      });
-    }
-    if (historyViewMode === "week" && historySelectedWeek) {
-      const weekOpt = availableWeeks.find(w => w.value === historySelectedWeek);
-      if (weekOpt) {
-        return mealHistory.filter(m => {
-          const d = parseDate(m.time);
-          if (!d) return false;
-          const datePart = d.toISOString().split("T")[0];
-          return datePart >= weekOpt.startDate && datePart <= weekOpt.endDate;
-        });
-      }
-    }
-    if (historyViewMode === "month" && historySelectedMonth) {
-      return mealHistory.filter(m => {
-        const d = parseDate(m.time);
-        if (!d) return false;
-        const monthPart = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
-        return monthPart === historySelectedMonth;
-      });
-    }
-    return mealHistory;
-  }, [historyViewMode, historySelectedDate, historySelectedWeek, historySelectedMonth, mealHistory, availableWeeks]);
-
   const sessionTotals = useMemo(() => {
     const totals = { "Sáng": 0, "Trưa": 0, "Chiều": 0 };
     filteredMeals.forEach(m => {
-      const session = getSessionFromDate(m.time);
+      const d = parseDate(m.time);
+      if (!d) return;
+      const session = getSessionFromHour(d.getHours());
       totals[session as keyof typeof totals] += parseCalories(m.notes);
     });
     return totals;
   }, [filteredMeals]);
 
-  const totalTodayCalories = sessionTotals["Sáng"] + sessionTotals["Trưa"] + sessionTotals["Chiều"];
+  const totalCalories = sessionTotals["Sáng"] + sessionTotals["Trưa"] + sessionTotals["Chiều"];
 
   // Paginated history
-  const historyPaginatedMeals = useMemo(() => {
-    const start = (historyPage - 1) * PAGE_SIZE;
-    return historyFilteredMeals.slice(start, start + PAGE_SIZE);
-  }, [historyFilteredMeals, historyPage]);
+  const paginatedMeals = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredMeals.slice(start, start + PAGE_SIZE);
+  }, [filteredMeals, currentPage]);
 
-  const historyTotalPages = Math.ceil(historyFilteredMeals.length / PAGE_SIZE);
+  const totalPages = Math.ceil(filteredMeals.length / PAGE_SIZE);
 
   if (loading) {
     return (
@@ -403,18 +343,19 @@ export function NutritionPlan() {
 
   return (
     <div className="space-y-10">
-      {/* Header */}
+      {/* Header with single view mode + selector */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
         <div>
           <h3 className="text-xl font-black text-natural-primary-dark uppercase tracking-tight">Nhật ký calo</h3>
           <p className="text-sm text-slate-500 font-medium mt-1">Theo dõi năng lượng bạn đã nạp vào cơ thể.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {/* View mode toggle */}
           <div className="flex gap-1 p-1 bg-natural-light rounded-full">
             {(["day", "week", "month"] as ViewMode[]).map(mode => (
               <button
                 key={mode}
-                onClick={() => { setViewMode(mode); }}
+                onClick={() => { setViewMode(mode); setCurrentPage(1); }}
                 className={clsx(
                   "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
                   viewMode === mode
@@ -427,12 +368,13 @@ export function NutritionPlan() {
             ))}
           </div>
 
+          {/* Date/Week/Month selector */}
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-slate-400" />
             {viewMode === "day" && (
               <select
                 value={selectedDate}
-                onChange={(e) => { setSelectedDate(e.target.value); }}
+                onChange={(e) => { setSelectedDate(e.target.value); setCurrentPage(1); }}
                 className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
               >
                 {availableDates.map(opt => (
@@ -443,7 +385,7 @@ export function NutritionPlan() {
             {viewMode === "week" && (
               <select
                 value={selectedWeek}
-                onChange={(e) => { setSelectedWeek(e.target.value); }}
+                onChange={(e) => { setSelectedWeek(e.target.value); setCurrentPage(1); }}
                 className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
               >
                 {availableWeeks.map(opt => (
@@ -454,7 +396,7 @@ export function NutritionPlan() {
             {viewMode === "month" && (
               <select
                 value={selectedMonth}
-                onChange={(e) => { setSelectedMonth(e.target.value); }}
+                onChange={(e) => { setSelectedMonth(e.target.value); setCurrentPage(1); }}
                 className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
               >
                 {availableMonths.map(opt => (
@@ -466,7 +408,7 @@ export function NutritionPlan() {
 
           <div className="text-right">
             <div className="flex items-baseline justify-end gap-2">
-              <span className="text-4xl font-black text-natural-primary">{totalTodayCalories}</span>
+              <span className="text-4xl font-black text-natural-primary">{totalCalories}</span>
               <span className="text-xl font-bold text-slate-300">/ 2,100</span>
             </div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Tổng calo đã nạp</p>
@@ -488,7 +430,7 @@ export function NutritionPlan() {
       <div className="h-4 w-full bg-natural-light rounded-full overflow-hidden border border-natural-border/30 shadow-inner">
         <div
           className="h-full bg-natural-primary shadow-sm transition-all duration-1000 ease-out"
-          style={{ width: `${Math.min((totalTodayCalories / 2100) * 100, 100)}%` }}
+          style={{ width: `${Math.min((totalCalories / 2100) * 100, 100)}%` }}
         />
       </div>
 
@@ -595,103 +537,20 @@ export function NutritionPlan() {
           </motion.div>
         )}
 
-        {/* History controls + sessions side by side */}
+        {/* History: 3-column sessions grid */}
         <div className="rounded-[32px] bg-white border border-natural-border shadow-sm overflow-hidden">
-          {/* Header: view mode + selector + pagination */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-natural-border/30">
-            {/* View mode toggle */}
-            <div className="flex gap-1 p-1 bg-natural-light rounded-full">
-              {(["day", "week", "month"] as ViewMode[]).map(mode => (
-                <button
-                  key={mode}
-                  onClick={() => { setHistoryViewMode(mode); setHistoryPage(1); }}
-                  className={clsx(
-                    "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
-                    historyViewMode === mode
-                      ? "bg-natural-primary text-white shadow-md"
-                      : "text-slate-500 hover:text-natural-primary"
-                  )}
-                >
-                  {mode === "day" ? "Ngày" : mode === "week" ? "Tuần" : "Tháng"}
-                </button>
-              ))}
-            </div>
-
-            {/* Selector */}
-            <div className="flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              {historyViewMode === "day" && (
-                <select
-                  value={historySelectedDate}
-                  onChange={(e) => { setHistorySelectedDate(e.target.value); setHistoryPage(1); }}
-                  className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
-                >
-                  {availableDates.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              )}
-              {historyViewMode === "week" && (
-                <select
-                  value={historySelectedWeek}
-                  onChange={(e) => { setHistorySelectedWeek(e.target.value); setHistoryPage(1); }}
-                  className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
-                >
-                  {availableWeeks.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              )}
-              {historyViewMode === "month" && (
-                <select
-                  value={historySelectedMonth}
-                  onChange={(e) => { setHistorySelectedMonth(e.target.value); setHistoryPage(1); }}
-                  className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
-                >
-                  {availableMonths.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {/* Pagination */}
-            {historyTotalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
-                  disabled={historyPage === 1}
-                  className="p-1.5 rounded-lg border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="text-xs font-bold text-slate-500 min-w-[48px] text-center">
-                  {historyPage} / {historyTotalPages}
-                </span>
-                <button
-                  onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))}
-                  disabled={historyPage === historyTotalPages}
-                  className="p-1.5 rounded-lg border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Sessions: Sáng | Trưa | Chiều side by side */}
           <div className="grid grid-cols-3 divide-x divide-natural-border/30">
             {SESSION_TYPES.map(session => {
-              const sessionMeals = historyPaginatedMeals.filter(m => {
-                const d = new Date(m.time);
-                if (isNaN(d.getTime())) return false;
+              const sessionMeals = paginatedMeals.filter(m => {
+                const d = parseDate(m.time);
+                if (!d) return false;
                 return getSessionFromHour(d.getHours()) === session;
               });
               const sessionCal = sessionMeals.reduce((sum, m) => sum + parseCalories(m.notes), 0);
 
               return (
                 <div key={session} className={clsx(
-                  "p-4 transition-all",
+                  "p-4 transition-all min-h-[160px]",
                   sessionMeals.length > 0 ? "bg-white" : "bg-white/50"
                 )}>
                   <div className="flex justify-between items-start mb-3">
@@ -734,6 +593,29 @@ export function NutritionPlan() {
               );
             })}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 py-3 border-t border-natural-border/30">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-bold text-slate-500 min-w-[48px] text-center">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
