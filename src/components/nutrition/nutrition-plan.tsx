@@ -35,15 +35,36 @@ const PAGE_SIZE = 5;
 const SESSION_TYPES = ["Sáng", "Trưa", "Chiều"];
 
 function formatDateLabel(dateStr: string): string {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
+  const d = parseDate(dateStr);
+  if (!d) return dateStr;
   return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+function parseDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  // Try full ISO format first
+  let d = new Date(dateStr);
+  if (!isNaN(d.getTime())) return d;
+  // Try just time string (HH:mm) - use today's date
+  if (/^\d{1,2}:\d{2}$/.test(dateStr)) {
+    const [h, m] = dateStr.split(":").map(Number);
+    d = new Date();
+    d.setHours(h, m, 0, 0);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
 }
 
 function getSessionFromHour(hour: number): string {
   if (hour >= 5 && hour < 12) return "Sáng";
   if (hour >= 12 && hour < 17) return "Trưa";
   return "Chiều";
+}
+
+function getSessionFromDate(dateStr: string): string {
+  const d = parseDate(dateStr);
+  if (!d) return "Chiều";
+  return getSessionFromHour(d.getHours());
 }
 
 function parseCalories(notes: string | null): number {
@@ -291,19 +312,31 @@ export function NutritionPlan() {
   const filteredMeals = useMemo(() => {
     if (mealHistory.length === 0) return [];
     if (viewMode === "day" && selectedDate) {
-      return mealHistory.filter(m => m.time.startsWith(selectedDate));
+      return mealHistory.filter(m => {
+        const d = parseDate(m.time);
+        if (!d) return false;
+        const datePart = d.toISOString().split("T")[0];
+        return datePart === selectedDate;
+      });
     }
     if (viewMode === "week" && selectedWeek) {
       const weekOpt = availableWeeks.find(w => w.value === selectedWeek);
       if (weekOpt) {
         return mealHistory.filter(m => {
-          const d = m.time.split("T")[0];
-          return d >= weekOpt.startDate && d <= weekOpt.endDate;
+          const d = parseDate(m.time);
+          if (!d) return false;
+          const datePart = d.toISOString().split("T")[0];
+          return datePart >= weekOpt.startDate && datePart <= weekOpt.endDate;
         });
       }
     }
     if (viewMode === "month" && selectedMonth) {
-      return mealHistory.filter(m => m.time.startsWith(selectedMonth));
+      return mealHistory.filter(m => {
+        const d = parseDate(m.time);
+        if (!d) return false;
+        const monthPart = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
+        return monthPart === selectedMonth;
+      });
     }
     return mealHistory;
   }, [viewMode, selectedDate, selectedWeek, selectedMonth, mealHistory, availableWeeks]);
@@ -312,19 +345,31 @@ export function NutritionPlan() {
   const historyFilteredMeals = useMemo(() => {
     if (mealHistory.length === 0) return [];
     if (historyViewMode === "day" && historySelectedDate) {
-      return mealHistory.filter(m => m.time.startsWith(historySelectedDate));
+      return mealHistory.filter(m => {
+        const d = parseDate(m.time);
+        if (!d) return false;
+        const datePart = d.toISOString().split("T")[0];
+        return datePart === historySelectedDate;
+      });
     }
     if (historyViewMode === "week" && historySelectedWeek) {
       const weekOpt = availableWeeks.find(w => w.value === historySelectedWeek);
       if (weekOpt) {
         return mealHistory.filter(m => {
-          const d = m.time.split("T")[0];
-          return d >= weekOpt.startDate && d <= weekOpt.endDate;
+          const d = parseDate(m.time);
+          if (!d) return false;
+          const datePart = d.toISOString().split("T")[0];
+          return datePart >= weekOpt.startDate && datePart <= weekOpt.endDate;
         });
       }
     }
     if (historyViewMode === "month" && historySelectedMonth) {
-      return mealHistory.filter(m => m.time.startsWith(historySelectedMonth));
+      return mealHistory.filter(m => {
+        const d = parseDate(m.time);
+        if (!d) return false;
+        const monthPart = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
+        return monthPart === historySelectedMonth;
+      });
     }
     return mealHistory;
   }, [historyViewMode, historySelectedDate, historySelectedWeek, historySelectedMonth, mealHistory, availableWeeks]);
@@ -332,9 +377,7 @@ export function NutritionPlan() {
   const sessionTotals = useMemo(() => {
     const totals = { "Sáng": 0, "Trưa": 0, "Chiều": 0 };
     filteredMeals.forEach(m => {
-      const d = new Date(m.time);
-      if (isNaN(d.getTime())) return;
-      const session = getSessionFromHour(d.getHours());
+      const session = getSessionFromDate(m.time);
       totals[session as keyof typeof totals] += parseCalories(m.notes);
     });
     return totals;
