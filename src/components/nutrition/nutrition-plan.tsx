@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Plus, Trash2, Edit2, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Edit2, Calendar, ChevronLeft, ChevronRight, Check, X } from "lucide-react";
 import { clsx } from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -31,7 +31,6 @@ interface MonthOption {
 }
 
 type ViewMode = "day" | "week" | "month";
-const PAGE_SIZE = 5;
 const SESSION_TYPES = ["Sáng", "Trưa", "Chiều"];
 
 function parseDate(dateStr: string): Date | null {
@@ -69,7 +68,6 @@ export function NutritionPlan() {
   const [mealHistory, setMealHistory] = useState<MealEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Single view mode - shared by header + history
   const [viewMode, setViewMode] = useState<ViewMode>("day");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedWeek, setSelectedWeek] = useState<string>("");
@@ -82,9 +80,8 @@ export function NutritionPlan() {
   const [sessionDishes, setSessionDishes] = useState([{ dish: "", calories: "" }]);
   const [saving, setSaving] = useState(false);
 
-  // Edit state
-  const [editingMeal, setEditingMeal] = useState<MealEntry | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", calories: "" });
+  // Inline edit state - keyed by meal id
+  const [editingMeals, setEditingMeals] = useState<Record<string, { name: string; calories: string }>>({});
 
   const loadMeals = useCallback(async () => {
     try {
@@ -103,7 +100,6 @@ export function NutritionPlan() {
     loadMeals();
   }, [loadMeals]);
 
-  // Derive available options from mealHistory
   const { availableDates, availableWeeks, availableMonths } = useMemo(() => {
     if (mealHistory.length === 0) {
       return { availableDates: [], availableWeeks: [], availableMonths: [] };
@@ -163,7 +159,6 @@ export function NutritionPlan() {
     return { availableDates: dates, availableWeeks: weeks, availableMonths: months };
   }, [mealHistory]);
 
-  // Set defaults when options become available
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
     if (!selectedDate && availableDates.length > 0) {
@@ -236,6 +231,7 @@ export function NutritionPlan() {
   };
 
   const handleDeleteMeal = async (id: string) => {
+    if (!confirm("Bạn có chắc muốn xóa món ăn này?")) return;
     try {
       const res = await fetch(`/api/meals/${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -247,41 +243,56 @@ export function NutritionPlan() {
   };
 
   const handleStartEditMeal = (meal: MealEntry) => {
-    setEditingMeal(meal);
     const notes = meal.notes || "";
     const calMatch = notes.match(/(\d+)/);
-    setEditForm({
-      name: meal.name,
-      calories: calMatch ? calMatch[1] : "",
+    setEditingMeals(prev => ({
+      ...prev,
+      [meal.id]: { name: meal.name, calories: calMatch ? calMatch[1] : "" },
+    }));
+  };
+
+  const handleCancelEditMeal = (id: string) => {
+    setEditingMeals(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
     });
   };
 
-  const handleSaveEditMeal = async () => {
-    if (!editingMeal) return;
+  const handleSaveEditMeal = async (id: string) => {
+    const edit = editingMeals[id];
+    if (!edit) return;
     try {
-      const res = await fetch(`/api/meals/${editingMeal.id}`, {
+      const res = await fetch(`/api/meals/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: editForm.name,
-          notes: editForm.calories ? `${editForm.calories} kcal` : null,
+          name: edit.name,
+          notes: edit.calories ? `${edit.calories} kcal` : null,
         }),
       });
 
       if (res.ok) {
         setMealHistory(prev => prev.map(m =>
-          m.id === editingMeal.id
-            ? { ...m, name: editForm.name, notes: editForm.calories ? `${editForm.calories} kcal` : null }
+          m.id === id
+            ? { ...m, name: edit.name, notes: edit.calories ? `${edit.calories} kcal` : null }
             : m
         ));
-        setEditingMeal(null);
+        handleCancelEditMeal(id);
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  // Filter meals by view mode - used by BOTH header and history
+  const handleEditFieldChange = (id: string, field: "name" | "calories", value: string) => {
+    setEditingMeals(prev => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value },
+    }));
+  };
+
+  // Filter meals by view mode
   const filteredMeals = useMemo(() => {
     if (mealHistory.length === 0) return [];
     if (viewMode === "day" && selectedDate) {
@@ -312,6 +323,25 @@ export function NutritionPlan() {
     return mealHistory;
   }, [viewMode, selectedDate, selectedWeek, selectedMonth, mealHistory, availableWeeks]);
 
+  // Group meals by date for week view
+  const mealsByDate = useMemo(() => {
+    if (viewMode !== "week") return null;
+    const groups: Record<string, MealEntry[]> = {};
+    filteredMeals.forEach(m => {
+      const d = parseDate(m.time);
+      if (!d) return;
+      const dateKey = d.toISOString().split("T")[0];
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(m);
+    });
+    return groups;
+  }, [filteredMeals, viewMode]);
+
+  const sortedDates = mealsByDate ? Object.keys(mealsByDate).sort((a, b) => b.localeCompare(a)) : [];
+  const totalDatePages = sortedDates.length;
+  const currentDateKey = sortedDates[currentPage - 1] || "";
+  const currentDateMeals = currentDateKey ? (mealsByDate?.[currentDateKey] || []) : [];
+
   const sessionTotals = useMemo(() => {
     const totals = { "Sáng": 0, "Trưa": 0, "Chiều": 0 };
     filteredMeals.forEach(m => {
@@ -325,13 +355,19 @@ export function NutritionPlan() {
 
   const totalCalories = sessionTotals["Sáng"] + sessionTotals["Trưa"] + sessionTotals["Chiều"];
 
-  // Paginated history
+  // For day view: 5 items per page
+  const PAGE_SIZE = 5;
   const paginatedMeals = useMemo(() => {
+    if (viewMode === "week") return currentDateMeals;
     const start = (currentPage - 1) * PAGE_SIZE;
     return filteredMeals.slice(start, start + PAGE_SIZE);
-  }, [filteredMeals, currentPage]);
+  }, [filteredMeals, currentPage, viewMode, currentDateMeals]);
 
-  const totalPages = Math.ceil(filteredMeals.length / PAGE_SIZE);
+  const totalPages = viewMode === "week" ? totalDatePages : Math.ceil(filteredMeals.length / PAGE_SIZE);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
 
   if (loading) {
     return (
@@ -341,16 +377,72 @@ export function NutritionPlan() {
     );
   }
 
+  const renderMealRow = (meal: MealEntry) => {
+    const isEditing = meal.id in editingMeals;
+    const edit = editingMeals[meal.id];
+
+    if (isEditing && edit) {
+      return (
+        <div key={meal.id} className="flex items-center gap-1.5 py-1 border-b border-natural-border/10 last:border-0 bg-natural-light/30">
+          <input
+            type="text"
+            value={edit.name}
+            onChange={(e) => handleEditFieldChange(meal.id, "name", e.target.value)}
+            className="flex-1 text-[11px] font-bold p-1.5 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary"
+          />
+          <input
+            type="number"
+            value={edit.calories}
+            onChange={(e) => handleEditFieldChange(meal.id, "calories", e.target.value)}
+            className="w-16 text-[10px] font-bold p-1.5 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary"
+          />
+          <button
+            onClick={() => handleSaveEditMeal(meal.id)}
+            className="p-1 rounded text-emerald-500 hover:bg-emerald-50 transition-all"
+          >
+            <Check className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => handleCancelEditMeal(meal.id)}
+            className="p-1 rounded text-slate-400 hover:bg-slate-100 transition-all"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div key={meal.id} className="flex items-center gap-1.5 py-1 border-b border-natural-border/10 last:border-0">
+        <p className="text-[11px] font-bold text-natural-primary-dark line-clamp-1 flex-1">{meal.name}</p>
+        <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{parseCalories(meal.notes)}</p>
+        <div className="flex gap-0.5">
+          <button
+            onClick={() => handleStartEditMeal(meal)}
+            className="p-1 rounded text-slate-400 hover:text-natural-primary hover:bg-natural-light transition-all"
+          >
+            <Edit2 className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => handleDeleteMeal(meal.id)}
+            className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-10">
-      {/* Header with single view mode + selector */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
         <div>
           <h3 className="text-xl font-black text-natural-primary-dark uppercase tracking-tight">Nhật ký calo</h3>
           <p className="text-sm text-slate-500 font-medium mt-1">Theo dõi năng lượng bạn đã nạp vào cơ thể.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {/* View mode toggle */}
           <div className="flex gap-1 p-1 bg-natural-light rounded-full">
             {(["day", "week", "month"] as ViewMode[]).map(mode => (
               <button
@@ -368,7 +460,6 @@ export function NutritionPlan() {
             ))}
           </div>
 
-          {/* Date/Week/Month selector */}
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-slate-400" />
             {viewMode === "day" && (
@@ -537,68 +628,94 @@ export function NutritionPlan() {
           </motion.div>
         )}
 
-        {/* History: 3-column sessions grid */}
+        {/* History grid */}
         <div className="rounded-[32px] bg-white border border-natural-border shadow-sm overflow-hidden">
-          <div className="grid grid-cols-3 divide-x divide-natural-border/30">
-            {SESSION_TYPES.map(session => {
-              const sessionMeals = paginatedMeals.filter(m => {
-                const d = parseDate(m.time);
-                if (!d) return false;
-                return getSessionFromHour(d.getHours()) === session;
-              });
-              const sessionCal = sessionMeals.reduce((sum, m) => sum + parseCalories(m.notes), 0);
+          {viewMode === "week" ? (
+            <>
+              {/* Week view: grouped by date, each day = 1 page */}
+              <div className="px-4 py-3 bg-natural-light/30 border-b border-natural-border/30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-3.5 h-3.5 text-natural-primary" />
+                  <span className="text-[10px] font-black text-natural-primary-dark uppercase tracking-widest">
+                    {currentDateKey ? formatDateLabel(currentDateKey) : "Chọn ngày"}
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-slate-400">{currentPage} / {totalPages}</span>
+              </div>
+              <div className="grid grid-cols-3 divide-x divide-natural-border/30">
+                {SESSION_TYPES.map(session => {
+                  const sessionMeals = currentDateMeals.filter(m => {
+                    const d = parseDate(m.time);
+                    if (!d) return false;
+                    return getSessionFromHour(d.getHours()) === session;
+                  });
+                  const sessionCal = sessionMeals.reduce((sum, m) => sum + parseCalories(m.notes), 0);
 
-              return (
-                <div key={session} className={clsx(
-                  "p-4 transition-all min-h-[160px]",
-                  sessionMeals.length > 0 ? "bg-white" : "bg-white/50"
-                )}>
-                  <div className="flex justify-between items-start mb-3">
-                    <p className={clsx(
-                      "text-[9px] font-black uppercase tracking-widest",
-                      session === "Sáng" ? "text-amber-500" : session === "Trưa" ? "text-emerald-500" : "text-rose-500"
-                    )}>{session}</p>
-                    {sessionMeals.length > 0 && (
-                      <span className="text-[10px] font-black text-natural-primary">{sessionCal} kcal</span>
+                  return (
+                    <div key={session} className={clsx(
+                      "p-4 transition-all min-h-[140px]",
+                      sessionMeals.length > 0 ? "bg-white" : "bg-white/50"
+                    )}>
+                      <div className="flex justify-between items-start mb-2">
+                        <p className={clsx(
+                          "text-[9px] font-black uppercase tracking-widest",
+                          session === "Sáng" ? "text-amber-500" : session === "Trưa" ? "text-emerald-500" : "text-rose-500"
+                        )}>{session}</p>
+                        {sessionMeals.length > 0 && (
+                          <span className="text-[10px] font-black text-natural-primary">{sessionCal} kcal</span>
+                        )}
+                      </div>
+                      {sessionMeals.length > 0 ? (
+                        <div className="space-y-0.5">{sessionMeals.map(renderMealRow)}</div>
+                      ) : (
+                        <p className="text-[10px] text-slate-300 font-medium italic">Chưa ghi nhận</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            /* Day/Month view: 3-column sessions */
+            <div className="grid grid-cols-3 divide-x divide-natural-border/30">
+              {SESSION_TYPES.map(session => {
+                const sessionMeals = paginatedMeals.filter(m => {
+                  const d = parseDate(m.time);
+                  if (!d) return false;
+                  return getSessionFromHour(d.getHours()) === session;
+                });
+                const sessionCal = sessionMeals.reduce((sum, m) => sum + parseCalories(m.notes), 0);
+
+                return (
+                  <div key={session} className={clsx(
+                    "p-4 transition-all min-h-[160px]",
+                    sessionMeals.length > 0 ? "bg-white" : "bg-white/50"
+                  )}>
+                    <div className="flex justify-between items-start mb-3">
+                      <p className={clsx(
+                        "text-[9px] font-black uppercase tracking-widest",
+                        session === "Sáng" ? "text-amber-500" : session === "Trưa" ? "text-emerald-500" : "text-rose-500"
+                      )}>{session}</p>
+                      {sessionMeals.length > 0 && (
+                        <span className="text-[10px] font-black text-natural-primary">{sessionCal} kcal</span>
+                      )}
+                    </div>
+                    {sessionMeals.length > 0 ? (
+                      <div className="space-y-1">{sessionMeals.map(renderMealRow)}</div>
+                    ) : (
+                      <p className="text-[10px] text-slate-300 font-medium italic">Chưa ghi nhận</p>
                     )}
                   </div>
-
-                  {sessionMeals.length > 0 ? (
-                    <div className="space-y-1">
-                      {sessionMeals.map(meal => (
-                        <div key={meal.id} className="flex items-center gap-1.5 py-1 border-b border-natural-border/10 last:border-0">
-                          <p className="text-[11px] font-bold text-natural-primary-dark line-clamp-1 flex-1">{meal.name}</p>
-                          <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{parseCalories(meal.notes)}</p>
-                          <div className="flex gap-0.5">
-                            <button
-                              onClick={() => handleStartEditMeal(meal)}
-                              className="p-1 rounded text-slate-400 hover:text-natural-primary hover:bg-natural-light transition-all"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteMeal(meal.id)}
-                              className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-[10px] text-slate-300 font-medium italic">Chưa ghi nhận</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-4 py-3 border-t border-natural-border/30">
               <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
                 className="p-1.5 rounded-lg border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
@@ -608,7 +725,7 @@ export function NutritionPlan() {
                 {currentPage} / {totalPages}
               </span>
               <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
                 className="p-1.5 rounded-lg border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
@@ -618,63 +735,6 @@ export function NutritionPlan() {
           )}
         </div>
       </div>
-
-      {/* Edit Modal */}
-      <AnimatePresence>
-        {editingMeal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setEditingMeal(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white rounded-[32px] p-6 w-full max-w-sm shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h4 className="text-sm font-black text-natural-primary-dark uppercase tracking-wide mb-4">Chỉnh sửa món ăn</h4>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block ml-1">Tên món</label>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full text-sm font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block ml-1">Calo (kcal)</label>
-                  <input
-                    type="number"
-                    value={editForm.calories}
-                    onChange={(e) => setEditForm({ ...editForm, calories: e.target.value })}
-                    className="w-full text-sm font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setEditingMeal(null)}
-                  className="flex-1 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition-all"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleSaveEditMeal}
-                  className="flex-[2] py-3 rounded-xl bg-natural-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-natural-primary/20"
-                >
-                  Lưu
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
