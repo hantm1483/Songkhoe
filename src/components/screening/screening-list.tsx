@@ -370,7 +370,14 @@ export function ScreeningLog() {
   const toggleCompleted = async (log: LabResult) => {
     const completed = !isCompleted(log);
     try {
-      const notesObj = log.notes ? JSON.parse(log.notes) : {};
+      let notesObj: Record<string, unknown> = {};
+      try {
+        if (log.notes) {
+          notesObj = JSON.parse(log.notes);
+        }
+      } catch {
+        notesObj = {};
+      }
       notesObj.completed = completed;
       const newNotes = JSON.stringify(notesObj);
 
