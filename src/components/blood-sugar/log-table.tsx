@@ -20,7 +20,7 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
   const [loading, setLoading] = useState(true);
 
   // Pagination
-  const [daysPerPage, setDaysPerPage] = useState(3);
+  const [daysPerPage, setDaysPerPage] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Column-specific search
