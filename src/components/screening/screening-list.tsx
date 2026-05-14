@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { AlertCircle, Trash2, Plus, X, CheckCircle2, Edit2, FolderPlus } from "lucide-react";
 import { clsx } from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,7 +38,7 @@ export function ScreeningList() {
   const [labResults, setLabResults] = useState<LabResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [catalog, setCatalog] = useState<ScreeningCatalog[]>([]);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [isAddingRow, setIsAddingRow] = useState(false);
   const [newContent, setNewContent] = useState("");
   const [newTarget, setNewTarget] = useState("");
   const [newFrequency, setNewFrequency] = useState("");
@@ -63,11 +63,15 @@ export function ScreeningList() {
     if (!newContent.trim()) return;
     setSavingCatalog(true);
     try {
-      const res = await fetch("/api/screening-catalog", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: newContent.trim(),
+      const contentToSave = newContent.startsWith("custom_new:")
+      ? newContent.replace("custom_new:", "")
+      : newContent;
+
+    const res = await fetch("/api/screening-catalog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: contentToSave.trim(),
           target: newTarget.trim() || undefined,
           frequency: newFrequency.trim() || undefined,
           meaning: newMeaning.trim() || undefined,
@@ -75,12 +79,11 @@ export function ScreeningList() {
       });
       if (res.ok) {
         const json = await res.json();
-        // Add to catalog only if not demo (demo returns id with demo- prefix)
         const newItem = json.data;
         if (!newItem.id?.startsWith('demo-')) {
           setCatalog(prev => [newItem, ...prev]);
         }
-        setShowAddModal(false);
+        setIsAddingRow(false);
         setNewContent("");
         setNewTarget("");
         setNewFrequency("");
@@ -169,10 +172,10 @@ export function ScreeningList() {
           </p>
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => setIsAddingRow(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-natural-border text-xs font-bold text-natural-primary hover:bg-natural-light/30 transition-all shrink-0"
         >
-          <FolderPlus className="w-4 h-4" />
+          <Plus className="w-4 h-4" />
           Thêm mục
         </button>
       </div>
@@ -189,6 +192,98 @@ export function ScreeningList() {
             </tr>
           </thead>
           <tbody className="divide-y divide-natural-border/50">
+            {isAddingRow && (
+              <tr className="bg-natural-light/20">
+                <td className="py-4 pl-8">
+                  <div className="space-y-2">
+                    <select
+                      value={newContent.includes("custom_") ? "custom" : newContent}
+                      onChange={(e) => {
+                        if (e.target.value === "custom") {
+                          setNewContent("custom_new:");
+                        } else {
+                          setNewContent(e.target.value);
+                        }
+                      }}
+                      className="w-full text-xs font-bold p-2 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary uppercase"
+                    >
+                      <option value="">-- Chọn nội dung --</option>
+                      <option value="custom">Khác (nhập mới)...</option>
+                      {catalog.map((item) => (
+                        <option key={item.id} value={item.content}>{item.content}</option>
+                      ))}
+                      {defaultItems.map((item) => (
+                        <option key={item.type} value={item.title}>{item.title}</option>
+                      ))}
+                    </select>
+                    {newContent.startsWith("custom_new:") && (
+                      <input
+                        type="text"
+                        value={newContent.replace("custom_new:", "")}
+                        onChange={(e) => setNewContent("custom_new:" + e.target.value)}
+                        placeholder="Nhập nội dung mới..."
+                        className="w-full text-xs font-bold p-2 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary uppercase"
+                      />
+                    )}
+                  </div>
+                </td>
+                <td className="py-4 px-4">
+                  <input
+                    type="text"
+                    value={newTarget}
+                    onChange={(e) => setNewTarget(e.target.value)}
+                    placeholder="< 7.0%"
+                    className="w-full text-xs font-medium p-2 rounded-lg bg-white border border-natural-border"
+                  />
+                </td>
+                <td className="py-4 px-4 text-center">
+                  <input
+                    type="text"
+                    value={newFrequency}
+                    onChange={(e) => setNewFrequency(e.target.value)}
+                    placeholder="Mỗi 3 tháng"
+                    className="w-full text-xs font-medium p-2 rounded-lg bg-white border border-natural-border text-center"
+                  />
+                </td>
+                <td className="py-4 px-4">
+                  <span className="text-[10px] font-bold text-slate-400 italic">Chưa có lịch</span>
+                </td>
+                <td className="py-4 px-4">
+                  <input
+                    type="text"
+                    value={newMeaning}
+                    onChange={(e) => setNewMeaning(e.target.value)}
+                    placeholder="Ý nghĩa..."
+                    className="w-full text-xs font-medium p-2 rounded-lg bg-white border border-natural-border"
+                  />
+                </td>
+                <td className="py-4 pr-8">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleAddCatalogItem}
+                      disabled={savingCatalog || !newContent.trim() || (newContent.startsWith("custom_new:") && newContent.replace("custom_new:", "").trim() === "")}
+                      className="p-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-all disabled:opacity-50"
+                      title="Lưu"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsAddingRow(false);
+                        setNewContent("");
+                        setNewTarget("");
+                        setNewFrequency("");
+                        setNewMeaning("");
+                      }}
+                      className="p-2 rounded-lg bg-slate-100 text-slate-400 hover:bg-slate-200 transition-all"
+                      title="Hủy"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            )}
             {items.map((item, i) => {
               const reminderDate = getReminderDate(item.type);
               return (
@@ -236,103 +331,7 @@ export function ScreeningList() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {showAddModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-            onClick={() => setShowAddModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md bg-white rounded-3xl p-8 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-black text-natural-primary-dark uppercase">Thêm mục tầm soát</h3>
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="p-2 rounded-xl hover:bg-natural-light/30 transition-colors"
-                >
-                  <X className="w-5 h-5 text-slate-400" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Nội dung tầm soát <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={newContent}
-                    onChange={(e) => setNewContent(e.target.value)}
-                    placeholder="VD: HbA1c, Đường huyết..."
-                    className="w-full p-3 rounded-xl border border-natural-border text-sm font-medium outline-none focus:border-natural-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Ngưỡng mục tiêu
-                  </label>
-                  <input
-                    type="text"
-                    value={newTarget}
-                    onChange={(e) => setNewTarget(e.target.value)}
-                    placeholder="VD: < 7.0%"
-                    className="w-full p-3 rounded-xl border border-natural-border text-sm font-medium outline-none focus:border-natural-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Định kỳ
-                  </label>
-                  <input
-                    type="text"
-                    value={newFrequency}
-                    onChange={(e) => setNewFrequency(e.target.value)}
-                    placeholder="VD: Mỗi 3 tháng"
-                    className="w-full p-3 rounded-xl border border-natural-border text-sm font-medium outline-none focus:border-natural-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Ý nghĩa lâm sàng
-                  </label>
-                  <textarea
-                    value={newMeaning}
-                    onChange={(e) => setNewMeaning(e.target.value)}
-                    placeholder="Mô tả ý nghĩa..."
-                    rows={3}
-                    className="w-full p-3 rounded-xl border border-natural-border text-sm font-medium outline-none focus:border-natural-primary resize-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 mt-6">
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-3 rounded-xl border border-natural-border text-sm font-bold text-slate-500 hover:bg-natural-light/30 transition-all"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleAddCatalogItem}
-                  disabled={savingCatalog || !newContent.trim()}
-                  className="flex-1 py-3 rounded-xl bg-natural-primary text-white text-sm font-bold hover:bg-natural-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {savingCatalog ? "Đang lưu..." : "Lưu"}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+          </div>
   );
 }
 
@@ -561,7 +560,7 @@ export function ScreeningLog() {
     }
   };
 
-  const toggleCompleted = async (log: LabResult) => {
+  const toggleCompleted = useCallback(async (log: LabResult) => {
     const completed = !isCompleted(log);
     try {
       let notesObj: Record<string, unknown> = {};
@@ -586,12 +585,14 @@ export function ScreeningLog() {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
 
   // Sort logs by recorded_at descending
-  const sortedLogs = [...logs].sort((a, b) =>
-    (b.recorded_at || "").localeCompare(a.recorded_at || "")
-  );
+  const sortedLogs = useMemo(() => {
+    return [...logs].sort((a, b) =>
+      (b.recorded_at || "").localeCompare(a.recorded_at || "")
+    );
+  }, [logs]);
 
   if (loading) {
     return (

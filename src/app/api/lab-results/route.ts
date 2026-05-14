@@ -17,18 +17,22 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
 
+  const limit = parseInt(searchParams.get("limit") || "50");
+  const offset = parseInt(searchParams.get("offset") || "0");
+
   let query = supabase
     .from("lab_results")
-    .select("*")
+    .select("*", { count: "exact" })
     .eq("user_id", auth.userId)
-    .order("recorded_at", { ascending: false });
+    .order("recorded_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (type) query = query.eq("type", type);
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
   if (error) return NextResponse.json(databaseError(error), { status: 500 });
 
-  return NextResponse.json(successResponse({ results: data || [] }));
+  return NextResponse.json(successResponse({ results: data || [], total: count || 0 }));
 }
 
 /**
