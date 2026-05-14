@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { AlertCircle, Trash2, Plus, X, CheckCircle2, Edit2 } from "lucide-react";
+import { AlertCircle, Trash2, Plus, X, CheckCircle2, Edit2, FolderPlus } from "lucide-react";
 import { clsx } from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
-import type { LabResult } from "@/lib/supabase/database.types";
+import type { LabResult, ScreeningCatalog } from "@/lib/supabase/database.types";
 import { LAB_RESULT_TYPE_OPTIONS } from "@/lib/validations";
 
 const LAB_RESULT_TYPE_NAMES: Record<string, string> = {
@@ -18,7 +18,7 @@ const LAB_RESULT_TYPE_NAMES: Record<string, string> = {
   other: 'Khác',
 };
 
-const items = [
+const defaultItems = [
   { title: 'HbA1c', type: 'hba1c', target: '< 7.0%', frequency: 'Mỗi 3-6 tháng', meaning: 'Đánh giá kiểm soát đường huyết trong 3 tháng qua.' },
   { title: 'Đường huyết lúc đói', type: 'glucose', target: '3.9 - 7.2 mmol/L', frequency: 'Hàng ngày / Định kỳ', meaning: 'Kiểm soát đường huyết tại thời điểm đo.' },
   { title: 'Huyết áp', type: 'blood_pressure', target: '< 130/80 mmHg', frequency: 'Mỗi lần thăm khám', meaning: 'Giảm nguy cơ đột quỵ và biến chứng tim mạch.' },
@@ -26,24 +26,98 @@ const items = [
   { title: 'Protein niệu (Thận)', type: 'kidney', target: 'Âm tính', frequency: 'Định kỳ 12 tháng', meaning: 'Phát hiện sớm dấu hiệu suy thận do tiểu đường.' },
 ];
 
+const getItemTitle = (type: string): string => {
+  const found = LAB_RESULT_TYPE_NAMES[type];
+  if (found) return found;
+  // Try to find from default items
+  const item = defaultItems.find(d => d.type === type);
+  return item?.title || type;
+};
+
 export function ScreeningList() {
   const [labResults, setLabResults] = useState<LabResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [catalog, setCatalog] = useState<ScreeningCatalog[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newContent, setNewContent] = useState("");
+  const [newTarget, setNewTarget] = useState("");
+  const [newFrequency, setNewFrequency] = useState("");
+  const [newMeaning, setNewMeaning] = useState("");
+  const [savingCatalog, setSavingCatalog] = useState(false);
+
+  // Move getItems inside component so it can access catalog state
+  const getItems = (catalog: ScreeningCatalog[]) => {
+    if (catalog.length > 0) {
+      return catalog.map(item => ({
+        title: item.content,
+        type: item.content.toLowerCase().replace(/\s+/g, '_'),
+        target: item.target || '',
+        frequency: item.frequency || '',
+        meaning: item.meaning || '',
+      }));
+    }
+    return defaultItems;
+  };
+
+  const handleAddCatalogItem = async () => {
+    if (!newContent.trim()) return;
+    setSavingCatalog(true);
+    try {
+      const res = await fetch("/api/screening-catalog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: newContent.trim(),
+          target: newTarget.trim() || undefined,
+          frequency: newFrequency.trim() || undefined,
+          meaning: newMeaning.trim() || undefined,
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        // Add to catalog only if not demo (demo returns id with demo- prefix)
+        const newItem = json.data;
+        if (!newItem.id?.startsWith('demo-')) {
+          setCatalog(prev => [newItem, ...prev]);
+        }
+        setShowAddModal(false);
+        setNewContent("");
+        setNewTarget("");
+        setNewFrequency("");
+        setNewMeaning("");
+      } else {
+        const json = await res.json();
+        console.error("Failed to add:", json.error);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingCatalog(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadLabResults() {
+    async function loadData() {
       try {
-        const res = await fetch("/api/lab-results");
-        if (!res.ok) throw new Error("Failed to fetch");
-        const json = await res.json();
-        setLabResults(json.data?.results || []);
+        const [labRes, catRes] = await Promise.all([
+          fetch("/api/lab-results"),
+          fetch("/api/screening-catalog"),
+        ]);
+        if (labRes.ok) {
+          const json = await labRes.json();
+          setLabResults(json.data?.results || []);
+        }
+        if (catRes.ok) {
+          const json = await catRes.json();
+          setCatalog(json.data?.catalog || []);
+        }
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
       }
     }
-    loadLabResults();
+    loadData();
   }, []);
 
   const isCompleted = (log: LabResult) => {
@@ -60,15 +134,17 @@ export function ScreeningList() {
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
   };
 
-  const getReminderDate = (type: string) => {
+  const getReminderDate = (title: string) => {
+    const type = title.toLowerCase().replace(/\s+/g, '_');
     const uncompletedLogs = labResults.filter(log => log.type === type && !isCompleted(log));
     if (uncompletedLogs.length === 0) return null;
-    // Sort by recorded_at descending and get the most recent
     const sorted = [...uncompletedLogs].sort((a, b) =>
       (b.recorded_at || "").localeCompare(a.recorded_at || "")
     );
     return sorted[0]?.recorded_at || null;
   };
+
+  const items = getItems(catalog);
 
   if (loading) {
     return (
@@ -86,12 +162,19 @@ export function ScreeningList() {
         <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center shadow-sm shrink-0">
           <AlertCircle className="w-6 h-6 text-natural-accent" />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 flex-1">
           <p className="text-base font-black text-natural-primary-dark uppercase tracking-tight">Lưu ý quan trọng</p>
           <p className="text-sm font-medium text-slate-500 leading-relaxed">
             Mục tiêu điều trị có thể thay đổi tùy theo độ tuổi và tình trạng sức khỏe cụ thể của bạn. Luôn tham khảo ý kiến bác sĩ chuyên khoa.
           </p>
         </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-natural-border text-xs font-bold text-natural-primary hover:bg-natural-light/30 transition-all shrink-0"
+        >
+          <FolderPlus className="w-4 h-4" />
+          Thêm mục
+        </button>
       </div>
 
       <div className="overflow-x-auto scrollbar-none rounded-[32px] border border-natural-border bg-white shadow-sm">
@@ -152,6 +235,103 @@ export function ScreeningList() {
           <p className="text-xs text-slate-500 leading-relaxed">Nếu có dấu hiệu tê bì, châm chích bàn chân, cần thực hiện khám bàn chân ngay lập tức.</p>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            onClick={() => setShowAddModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md bg-white rounded-3xl p-8 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-black text-natural-primary-dark uppercase">Thêm mục tầm soát</h3>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="p-2 rounded-xl hover:bg-natural-light/30 transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-400" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    Nội dung tầm soát <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newContent}
+                    onChange={(e) => setNewContent(e.target.value)}
+                    placeholder="VD: HbA1c, Đường huyết..."
+                    className="w-full p-3 rounded-xl border border-natural-border text-sm font-medium outline-none focus:border-natural-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    Ngưỡng mục tiêu
+                  </label>
+                  <input
+                    type="text"
+                    value={newTarget}
+                    onChange={(e) => setNewTarget(e.target.value)}
+                    placeholder="VD: < 7.0%"
+                    className="w-full p-3 rounded-xl border border-natural-border text-sm font-medium outline-none focus:border-natural-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    Định kỳ
+                  </label>
+                  <input
+                    type="text"
+                    value={newFrequency}
+                    onChange={(e) => setNewFrequency(e.target.value)}
+                    placeholder="VD: Mỗi 3 tháng"
+                    className="w-full p-3 rounded-xl border border-natural-border text-sm font-medium outline-none focus:border-natural-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    Ý nghĩa lâm sàng
+                  </label>
+                  <textarea
+                    value={newMeaning}
+                    onChange={(e) => setNewMeaning(e.target.value)}
+                    placeholder="Mô tả ý nghĩa..."
+                    rows={3}
+                    className="w-full p-3 rounded-xl border border-natural-border text-sm font-medium outline-none focus:border-natural-primary resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 mt-6">
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 py-3 rounded-xl border border-natural-border text-sm font-bold text-slate-500 hover:bg-natural-light/30 transition-all"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleAddCatalogItem}
+                  disabled={savingCatalog || !newContent.trim()}
+                  className="flex-1 py-3 rounded-xl bg-natural-primary text-white text-sm font-bold hover:bg-natural-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingCatalog ? "Đang lưu..." : "Lưu"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
