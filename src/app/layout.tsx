@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
+import { QueryProvider } from "@/components/providers/query-provider";
 import "@/styles/globals.css";
 
 const beVietnamPro = Be_Vietnam_Pro({
@@ -37,7 +38,9 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block"
         />
       </head>
-      <body className="min-h-screen bg-surface antialiased font-body">{children}</body>
+      <body className="min-h-screen bg-surface antialiased font-body">
+        <QueryProvider>{children}</QueryProvider>
+      </body>
     </html>
   );
 }

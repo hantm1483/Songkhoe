@@ -9,10 +9,24 @@ export interface AuthContext {
 }
 
 /**
- * Get auth context - returns demo user if not authenticated
+ * Get auth context - supports both real auth and demo mode
  * API routes should use this instead of direct auth check
  */
 export async function getAuthContext(): Promise<AuthContext | null> {
+  // Check for guest session cookie FIRST - this is more reliable for demo users
+  // who don't have Supabase auth session, only a device ID cookie
+  const { cookies } = await import("next/headers");
+  const cookieStore = await cookies();
+  const guestCookie = cookieStore.get("sk_guest_session");
+
+  if (guestCookie?.value) {
+    return {
+      userId: `demo-${guestCookie.value}`,
+      isDemo: true,
+    };
+  }
+
+  // No guest cookie - try Supabase auth for real authenticated users
   const supabase = await createClient();
 
   // First try getUser (validates JWT with Supabase)
@@ -35,19 +49,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     };
   }
 
-  // No Supabase session - check for guest session cookie
-  const { cookies } = await import("next/headers");
-  const cookieStore = await cookies();
-  const guestCookie = cookieStore.get("sk_guest_session");
-
-  if (guestCookie?.value) {
-    return {
-      userId: `demo-${guestCookie.value}`,
-      isDemo: true,
-    };
-  }
-
-  console.error("Auth check failed - getUser error:", authError?.message);
+  console.error("Auth check failed - no guest cookie, getUser error:", authError?.message);
   return null;
 }
 

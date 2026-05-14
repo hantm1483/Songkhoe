@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { AlertCircle, Trash2, Plus, X, CheckCircle2, Edit2, FolderPlus } from "lucide-react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { AlertCircle, Trash2, Plus, X, CheckCircle2, Edit2 } from "lucide-react";
 import { clsx } from "clsx";
-import { motion, AnimatePresence } from "framer-motion";
 import type { LabResult, ScreeningCatalog } from "@/lib/supabase/database.types";
 import { LAB_RESULT_TYPE_OPTIONS } from "@/lib/validations";
+import { useScreeningCatalog, useCreateCatalogItem, DEFAULT_SCREENING_CATALOG } from "@/hooks/use-screening-catalog";
+import { useLabResults, useCreateLabResult, useUpdateLabResult, useDeleteLabResult } from "@/hooks/use-lab-results";
 
 const LAB_RESULT_TYPE_NAMES: Record<string, string> = {
   hba1c: 'HbA1c',
@@ -18,35 +19,33 @@ const LAB_RESULT_TYPE_NAMES: Record<string, string> = {
   other: 'Khác',
 };
 
-const defaultItems = [
-  { title: 'HbA1c', type: 'hba1c', target: '< 7.0%', frequency: 'Mỗi 3-6 tháng', meaning: 'Đánh giá kiểm soát đường huyết trong 3 tháng qua.' },
-  { title: 'Đường huyết lúc đói', type: 'glucose', target: '3.9 - 7.2 mmol/L', frequency: 'Hàng ngày / Định kỳ', meaning: 'Kiểm soát đường huyết tại thời điểm đo.' },
-  { title: 'Huyết áp', type: 'blood_pressure', target: '< 130/80 mmHg', frequency: 'Mỗi lần thăm khám', meaning: 'Giảm nguy cơ đột quỵ và biến chứng tim mạch.' },
-  { title: 'Soi đáy mắt', type: 'eye_exam', target: 'Không tổn thương', frequency: 'Định kỳ 12 tháng', meaning: 'Phát hiện sớm biến chứng võng mạc gây mù lòa.' },
-  { title: 'Protein niệu (Thận)', type: 'kidney', target: 'Âm tính', frequency: 'Định kỳ 12 tháng', meaning: 'Phát hiện sớm dấu hiệu suy thận do tiểu đường.' },
-];
-
 const getItemTitle = (type: string): string => {
   const found = LAB_RESULT_TYPE_NAMES[type];
   if (found) return found;
   // Try to find from default items
-  const item = defaultItems.find(d => d.type === type);
-  return item?.title || type;
+  const item = DEFAULT_SCREENING_CATALOG.find(d => d.content.toLowerCase().replace(/\s+/g, '_') === type);
+  return item?.content || type;
 };
 
 export function ScreeningList() {
-  const [labResults, setLabResults] = useState<LabResult[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [catalog, setCatalog] = useState<ScreeningCatalog[]>([]);
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [newContent, setNewContent] = useState("");
   const [newTarget, setNewTarget] = useState("");
   const [newFrequency, setNewFrequency] = useState("");
   const [newMeaning, setNewMeaning] = useState("");
-  const [savingCatalog, setSavingCatalog] = useState(false);
 
-  // Move getItems inside component so it can access catalog state
-  const getItems = (catalog: ScreeningCatalog[]) => {
+  // React Query hooks for data fetching
+  const { data: labResultsData, isLoading: labLoading } = useLabResults({ limit: 100 });
+  const { data: catalogData, isLoading: catLoading } = useScreeningCatalog();
+  const createCatalogItem = useCreateCatalogItem();
+
+  const labResults = labResultsData?.results || [];
+  const catalog = catalogData?.catalog || [];
+  const isDefaultCatalog = catalogData?.isDefault ?? true;
+  const loading = labLoading || catLoading;
+
+  // Get items for display
+  const getItems = () => {
     if (catalog.length > 0) {
       return catalog.map(item => ({
         title: item.content,
@@ -56,72 +55,37 @@ export function ScreeningList() {
         meaning: item.meaning || '',
       }));
     }
-    return defaultItems;
+    return DEFAULT_SCREENING_CATALOG.map(item => ({
+      title: item.content,
+      type: item.content.toLowerCase().replace(/\s+/g, '_'),
+      target: item.target || '',
+      frequency: item.frequency || '',
+      meaning: item.meaning || '',
+    }));
   };
 
   const handleAddCatalogItem = async () => {
     if (!newContent.trim()) return;
-    setSavingCatalog(true);
-    try {
-      const contentToSave = newContent.startsWith("custom_new:")
+    const contentToSave = newContent.startsWith("custom_new:")
       ? newContent.replace("custom_new:", "")
       : newContent;
 
-    const res = await fetch("/api/screening-catalog", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      await createCatalogItem.mutateAsync({
         content: contentToSave.trim(),
-          target: newTarget.trim() || undefined,
-          frequency: newFrequency.trim() || undefined,
-          meaning: newMeaning.trim() || undefined,
-        }),
+        target: newTarget.trim() || undefined,
+        frequency: newFrequency.trim() || undefined,
+        meaning: newMeaning.trim() || undefined,
       });
-      if (res.ok) {
-        const json = await res.json();
-        const newItem = json.data;
-        if (!newItem.id?.startsWith('demo-')) {
-          setCatalog(prev => [newItem, ...prev]);
-        }
-        setIsAddingRow(false);
-        setNewContent("");
-        setNewTarget("");
-        setNewFrequency("");
-        setNewMeaning("");
-      } else {
-        const json = await res.json();
-        console.error("Failed to add:", json.error);
-      }
+      setIsAddingRow(false);
+      setNewContent("");
+      setNewTarget("");
+      setNewFrequency("");
+      setNewMeaning("");
     } catch (err) {
-      console.error(err);
-    } finally {
-      setSavingCatalog(false);
+      console.error("Failed to add:", err);
     }
   };
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [labRes, catRes] = await Promise.all([
-          fetch("/api/lab-results"),
-          fetch("/api/screening-catalog"),
-        ]);
-        if (labRes.ok) {
-          const json = await labRes.json();
-          setLabResults(json.data?.results || []);
-        }
-        if (catRes.ok) {
-          const json = await catRes.json();
-          setCatalog(json.data?.catalog || []);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadData();
-  }, []);
 
   const isCompleted = (log: LabResult) => {
     try {
@@ -147,7 +111,7 @@ export function ScreeningList() {
     return sorted[0]?.recorded_at || null;
   };
 
-  const items = getItems(catalog);
+  const items = getItems();
 
   if (loading) {
     return (
@@ -212,8 +176,8 @@ export function ScreeningList() {
                       {catalog.map((item) => (
                         <option key={item.id} value={item.content}>{item.content}</option>
                       ))}
-                      {defaultItems.map((item) => (
-                        <option key={item.type} value={item.title}>{item.title}</option>
+                      {!isDefaultCatalog && DEFAULT_SCREENING_CATALOG.map((item) => (
+                        <option key={item.content} value={item.content}>{item.content}</option>
                       ))}
                     </select>
                     {newContent.startsWith("custom_new:") && (
@@ -261,7 +225,7 @@ export function ScreeningList() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleAddCatalogItem}
-                      disabled={savingCatalog || !newContent.trim() || (newContent.startsWith("custom_new:") && newContent.replace("custom_new:", "").trim() === "")}
+                      disabled={createCatalogItem.isPending || !newContent.trim() || (newContent.startsWith("custom_new:") && newContent.replace("custom_new:", "").trim() === "")}
                       className="p-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-all disabled:opacity-50"
                       title="Lưu"
                     >

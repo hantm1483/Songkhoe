@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Page } from "@/components/layout/page";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import type { LabResult } from "@/lib/supabase/database.types";
+import { useLabResults } from "@/hooks/use-lab-results";
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -17,18 +18,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// Types
-interface LabResult {
-  id: string;
-  type: "hba1c" | "cholesterol" | "creatinine" | "other";
-  value: number;
-  unit: string | null;
-  recorded_at: string;
-  notes: string | null;
-  created_at: string;
-}
-
-function getStatus(value: number, type: string): "normal" | "high" | "low" {
+function getStatus(value: number, type: string | null): "normal" | "high" | "low" {
   if (type === "hba1c") {
     if (value < 4.0) return "low";
     if (value > 7.0) return "high";
@@ -91,7 +81,7 @@ function LabResultCard({ result }: { result: LabResult }) {
       <CardContent className="pt-4">
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-body-lg text-on-surface-variant">{result.type.toUpperCase()}</h3>
+            <h3 className="text-body-lg text-on-surface-variant">{(result.type || "other").toUpperCase()}</h3>
             <div className="flex items-baseline gap-1 mt-1">
               <span
                 className={cn(
@@ -150,7 +140,7 @@ function LabTrendChart({
 
   if (data.length < 2) return null;
 
-  const Colors: Record<LabResult["type"], string> = {
+  const Colors: Record<string, string> = {
     hba1c: "#008B8B",
     cholesterol: "#136299",
     creatinine: "#943b23",
@@ -197,9 +187,9 @@ function LabTrendChart({
           <Line
             type="monotone"
             dataKey="value"
-            stroke={Colors[type]}
+            stroke={Colors[type || "other"]}
             strokeWidth={3}
-            dot={{ fill: Colors[type], strokeWidth: 2, r: 4 }}
+            dot={{ fill: Colors[type || "other"], strokeWidth: 2, r: 4 }}
           />
         </RechartsLineChart>
       </ResponsiveContainer>
@@ -209,35 +199,13 @@ function LabTrendChart({
 
 // Main Page Component
 export default function XetNghiemPage() {
-  const [results, setResults] = useState<LabResult[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeType, setActiveType] = useState<"hba1c" | "cholesterol" | "creatinine">("hba1c");
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
-  const supabase = createClient();
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase
-        .from("lab_results")
-        .select("*")
-        .order("recorded_at", { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      setResults(data || []);
-    } catch (err) {
-      console.error("Fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [supabase]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // React Query hook for data fetching
+  const { data: labResultsData, isLoading } = useLabResults({ limit: 50 });
+  const results = labResultsData?.results || [];
 
   const currentResults = results.filter((r) => r.type === activeType);
 
@@ -297,7 +265,7 @@ export default function XetNghiemPage() {
           </div>
         )}
 
-        {loading ? (
+        {isLoading ? (
           <div className="text-center py-8 text-on-surface-variant">Đang tải...</div>
         ) : (
           <>

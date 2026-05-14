@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { ThumbsUp, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,7 +22,7 @@ interface PostCardProps {
   compact?: boolean;
 }
 
-export function PostCard({ post, index, compact = false }: PostCardProps) {
+export const PostCard = memo(function PostCard({ post, index, compact = false }: PostCardProps) {
   if (compact) {
     return (
       <motion.div
@@ -82,4 +83,4 @@ export function PostCard({ post, index, compact = false }: PostCardProps) {
       </div>
     </motion.article>
   );
-}
+});
