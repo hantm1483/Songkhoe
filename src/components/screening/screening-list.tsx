@@ -486,7 +486,7 @@ export function ScreeningLog() {
                       <td className="py-4 pr-8 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={handleSave}
+                            onClick={(e) => { e.stopPropagation(); handleSave(); }}
                             disabled={saving}
                             className="p-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-sm disabled:opacity-50"
                             title="Lưu"
@@ -494,7 +494,7 @@ export function ScreeningLog() {
                             <CheckCircle2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleCancel(log)}
+                            onClick={(e) => { e.stopPropagation(); handleCancel(log); }}
                             className="p-2 rounded-lg bg-slate-100 text-slate-400 hover:bg-slate-200 transition-all shadow-sm"
                             title="Hủy"
                           >
@@ -555,13 +555,13 @@ export function ScreeningLog() {
                         {!completed && (
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
-                              onClick={() => handleEdit(log)}
+                              onClick={(e) => { e.stopPropagation(); handleEdit(log); }}
                               className="p-2.5 rounded-xl bg-white border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary transition-all shadow-sm"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDelete(log.id)}
+                              onClick={(e) => { e.stopPropagation(); handleDelete(log.id); }}
                               className="p-2.5 rounded-xl bg-white border border-natural-border text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm"
                             >
                               <Trash2 className="w-4 h-4" />
