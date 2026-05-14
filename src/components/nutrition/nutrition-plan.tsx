@@ -625,26 +625,26 @@ export function NutritionPlan() {
                     </div>
                     <div className="space-y-2">
                       {/* Column headers */}
-                      <div className="grid grid-cols-[5rem_1fr_auto] gap-1.5 px-1">
+                      <div className="grid grid-cols-[6rem_1fr_auto] gap-1.5 px-1">
                         <span className="text-[8px] font-black text-slate-400 uppercase">Giờ</span>
                         <span className="text-[8px] font-black text-slate-400 uppercase">Món ăn</span>
                         <span className="text-[8px] font-black text-slate-400 uppercase w-14 text-right">Calo</span>
                       </div>
                       {/* Meal rows */}
                       {rows.map((row, idx) => (
-                        <div key={idx} className="grid grid-cols-[5rem_1fr_auto] gap-1.5 items-center">
+                        <div key={idx} className="grid grid-cols-[6rem_1fr_auto] gap-1.5 items-center">
                           <input
                             type="time"
                             value={row.time}
                             onChange={(e) => handleUpdateNewMealRow(session, idx, "time", e.target.value)}
-                            className="w-20 text-[10px] font-bold p-1.5 rounded-lg bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                            className="w-full text-[10px] font-bold p-1.5 rounded-lg bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
                           />
                           <input
                             type="text"
                             value={row.dish}
                             onChange={(e) => handleUpdateNewMealRow(session, idx, "dish", e.target.value)}
                             placeholder="Tên món..."
-                            className="text-[11px] font-bold p-1.5 rounded-lg bg-natural-light border border-natural-border outline-none focus:border-natural-primary max-w-[120px]"
+                            className="w-full text-[11px] font-bold p-1.5 rounded-lg bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
                           />
                           <div className="flex items-center gap-1">
                             <input
