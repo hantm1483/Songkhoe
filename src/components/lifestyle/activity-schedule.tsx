@@ -30,7 +30,7 @@ export function ActivitySchedule() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<EditingState | null>(null);
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: '',
     time: '08:00',
     activity_name: '',
     duration_minutes: '30',
@@ -40,12 +40,22 @@ export function ActivitySchedule() {
   // Quick add state
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickAdd, setQuickAdd] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: '',
     time: '08:00',
     activity_name: '',
     duration_minutes: '30',
     calories_burned: ''
   });
+
+  // Initialize dates on client-side only to avoid hydration mismatch
+  const [clientReady, setClientReady] = useState(false);
+
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    setFormData(prev => ({ ...prev, date: today }));
+    setQuickAdd(prev => ({ ...prev, date: today }));
+    setClientReady(true);
+  }, []);
 
   // Date filter state
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -53,13 +63,14 @@ export function ActivitySchedule() {
 
   // Available dates from data
   const availableDates = useMemo(() => {
+    if (!schedule || schedule.length === 0) return [];
     const dateSet = new Set<string>();
-    schedule.forEach(item => {
+    schedule.forEach((item: ScheduleItem) => {
       dateSet.add(item.scheduled_date);
     });
     return Array.from(dateSet)
       .sort((a, b) => b.localeCompare(a))
-      .map(value => ({
+      .map((value: string) => ({
         value,
         label: formatDate(value)
       }));
@@ -67,11 +78,12 @@ export function ActivitySchedule() {
 
   // Filter and sort schedule
   const filteredSchedule = useMemo(() => {
+    if (!schedule || schedule.length === 0) return [];
     let items = selectedDate
-      ? schedule.filter(s => s.scheduled_date === selectedDate)
-      : schedule;
+      ? schedule.filter((s: ScheduleItem) => s.scheduled_date === selectedDate)
+      : [...schedule];
 
-    return items.sort((a, b) => {
+    return items.sort((a: ScheduleItem, b: ScheduleItem) => {
       const dateCompare = b.scheduled_date.localeCompare(a.scheduled_date);
       if (dateCompare !== 0) return dateCompare;
       const timeA = a.scheduled_time || '';
@@ -257,8 +269,8 @@ export function ActivitySchedule() {
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   };
 
-  const today = new Date().toISOString().split('T')[0];
-  const todayStr = `${new Date().getDate().toString().padStart(2, '0')}/${(new Date().getMonth() + 1).toString().padStart(2, '0')}`;
+  const today = clientReady ? new Date().toISOString().split('T')[0] : '';
+  const todayStr = clientReady ? `${new Date().getDate().toString().padStart(2, '0')}/${(new Date().getMonth() + 1).toString().padStart(2, '0')}` : '';
   const selectedDateStr = selectedDate ? formatDate(selectedDate) : todayStr;
   const todayTasks = filteredSchedule.filter(s => s.scheduled_date === (selectedDate || today));
 
