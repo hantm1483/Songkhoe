@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Edit2, Calendar } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Plus, Trash2, Edit2, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { clsx } from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -19,10 +19,34 @@ interface DateOption {
   value: string;
 }
 
+interface WeekOption {
+  label: string;
+  value: string;
+  startDate: string;
+  endDate: string;
+}
+
+interface MonthOption {
+  label: string;
+  value: string;
+}
+
+type ViewMode = "day" | "week" | "month";
+const PAGE_SIZE = 5;
+
 export function NutritionPlan() {
   const [mealHistory, setMealHistory] = useState<MealEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>("day");
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedWeek, setSelectedWeek] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const [availableDates, setAvailableDates] = useState<DateOption[]>([]);
+  const [availableWeeks, setAvailableWeeks] = useState<WeekOption[]>([]);
+  const [availableMonths, setAvailableMonths] = useState<MonthOption[]>([]);
+  const [optionsBuilt, setOptionsBuilt] = useState(false);
 
   // Form state
   const [isAdding, setIsAdding] = useState(false);
@@ -41,49 +65,91 @@ export function NutritionPlan() {
 
   const loadMeals = useCallback(async () => {
     try {
-      const res = await fetch("/api/meals?limit=200");
+      const res = await fetch("/api/meals?limit=500");
       if (!res.ok) throw new Error("Failed to fetch");
       const json = await res.json();
       const meals: MealEntry[] = json.data?.meals || [];
       setMealHistory(meals);
-
-      // Set default selected date to today
-      const today = new Date().toISOString().split("T")[0];
-      if (!selectedDate && meals.length > 0) {
-        const dates = getDistinctDates(meals);
-        if (dates.some(d => d.value === today)) {
-          setSelectedDate(today);
-        } else if (dates.length > 0) {
-          setSelectedDate(dates[0].value);
-        }
-      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, []);
 
   useEffect(() => {
     loadMeals();
   }, [loadMeals]);
 
-  const getDistinctDates = (meals: MealEntry[]): DateOption[] => {
-    const dateSet = new Set<string>();
-    meals.forEach(meal => {
-      const date = meal.time.split("T")[0];
-      dateSet.add(date);
-    });
-    return Array.from(dateSet)
-      .sort((a, b) => b.localeCompare(a))
-      .map(value => {
-        const d = new Date(value);
-        const label = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
-        return { value, label };
-      });
-  };
+  // Build filter options from data
+  useEffect(() => {
+    if (mealHistory.length === 0 || optionsBuilt) return;
 
-  const availableDates = getDistinctDates(mealHistory);
+    // Build date options (unique dates)
+    const dateSet = new Set<string>();
+    const dateMap = new Map<string, string>();
+    mealHistory.forEach(meal => {
+      const dateKey = meal.time.split("T")[0];
+      dateSet.add(dateKey);
+      const d = new Date(dateKey);
+      const label = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
+      dateMap.set(dateKey, label);
+    });
+    const distinctDates = Array.from(dateSet).sort((a, b) => b.localeCompare(a));
+    setAvailableDates(distinctDates.map(v => ({ value: v, label: dateMap.get(v) || v })));
+
+    // Build week options
+    const weekMap = new Map<string, WeekOption>();
+    mealHistory.forEach(meal => {
+      const d = new Date(meal.time);
+      const year = d.getFullYear();
+      const firstDayOfYear = new Date(year, 0, 1);
+      const pastDays = (d.getTime() - firstDayOfYear.getTime()) / (1000 * 60 * 60 * 24);
+      const weekNum = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
+      const weekKey = `${year}-W${weekNum}`;
+      const startOfWeek = new Date(d);
+      startOfWeek.setDate(d.getDate() - d.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      if (!weekMap.has(weekKey)) {
+        weekMap.set(weekKey, {
+          label: `Tuần ${weekNum} - ${d.toLocaleDateString("vi-VN", { month: "short", year: "numeric" })}`,
+          value: weekKey,
+          startDate: startOfWeek.toISOString().split("T")[0],
+          endDate: endOfWeek.toISOString().split("T")[0],
+        });
+      }
+    });
+    const sortedWeeks = Array.from(weekMap.values()).sort((a, b) => b.value.localeCompare(a.value));
+    setAvailableWeeks(sortedWeeks);
+
+    // Build month options
+    const monthMap = new Map<string, MonthOption>();
+    mealHistory.forEach(meal => {
+      const d = new Date(meal.time);
+      const monthKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, {
+          label: d.toLocaleDateString("vi-VN", { month: "long", year: "numeric" }),
+          value: monthKey,
+        });
+      }
+    });
+    const sortedMonths = Array.from(monthMap.values()).sort((a, b) => b.value.localeCompare(a.value));
+    setAvailableMonths(sortedMonths);
+
+    // Set defaults
+    const today = new Date().toISOString().split("T")[0];
+    if (distinctDates.includes(today)) {
+      setSelectedDate(today);
+    } else if (distinctDates.length > 0) {
+      setSelectedDate(distinctDates[0]);
+    }
+    if (sortedWeeks.length > 0) setSelectedWeek(sortedWeeks[0].value);
+    if (sortedMonths.length > 0) setSelectedMonth(sortedMonths[0].value);
+
+    setOptionsBuilt(true);
+  }, [mealHistory, optionsBuilt]);
 
   const handleAddDishRow = () => {
     setSessionDishes([...sessionDishes, { dish: "", calories: "" }]);
@@ -188,10 +254,53 @@ export function NutritionPlan() {
     }
   };
 
-  // Filter meals by selected date
-  const filteredMeals = selectedDate
-    ? mealHistory.filter(m => m.time.startsWith(selectedDate))
-    : mealHistory;
+  // Filter meals by view mode
+  const filteredMeals = useMemo(() => {
+    let meals: MealEntry[] = [];
+    if (viewMode === "day" && selectedDate) {
+      meals = mealHistory.filter(m => m.time.startsWith(selectedDate));
+    } else if (viewMode === "week" && selectedWeek) {
+      const weekOpt = availableWeeks.find(w => w.value === selectedWeek);
+      if (weekOpt) {
+        meals = mealHistory.filter(m => {
+          const d = m.time.split("T")[0];
+          return d >= weekOpt.startDate && d <= weekOpt.endDate;
+        });
+      }
+    } else if (viewMode === "month" && selectedMonth) {
+      meals = mealHistory.filter(m => m.time.startsWith(selectedMonth));
+    } else {
+      meals = mealHistory;
+    }
+    return meals;
+  }, [viewMode, selectedDate, selectedWeek, selectedMonth, mealHistory, availableWeeks]);
+
+  // Paginated meals
+  const paginatedMeals = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredMeals.slice(start, start + PAGE_SIZE);
+  }, [filteredMeals, currentPage]);
+
+  const totalPages = Math.ceil(filteredMeals.length / PAGE_SIZE);
+
+  // Group paginated meals by date then session
+  const groupedMeals = useMemo(() => {
+    const groups: Record<string, Record<string, MealEntry[]>> = {};
+    paginatedMeals.forEach(meal => {
+      const dateKey = meal.time.split("T")[0];
+      const hour = new Date(meal.time).getHours();
+      let session = "Chiều";
+      if (hour >= 5 && hour < 12) session = "Sáng";
+      else if (hour >= 12 && hour < 17) session = "Trưa";
+      if (!groups[dateKey]) groups[dateKey] = {};
+      if (!groups[dateKey][session]) groups[dateKey][session] = [];
+      groups[dateKey][session].push(meal);
+    });
+    return groups;
+  }, [paginatedMeals]);
+
+  // Sort dates descending
+  const sortedDates = Object.keys(groupedMeals).sort((a, b) => b.localeCompare(a));
 
   // Calculate calories per session
   const parseCalories = (notes: string | null): number => {
@@ -232,23 +341,69 @@ export function NutritionPlan() {
 
   return (
     <div className="space-y-10">
-      {/* Header with date selector */}
+      {/* Header with view mode selector */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
         <div>
           <h3 className="text-xl font-black text-natural-primary-dark uppercase tracking-tight">Nhật ký calo</h3>
           <p className="text-sm text-slate-500 font-medium mt-1">Theo dõi năng lượng bạn đã nạp vào cơ thể.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Calendar className="w-4 h-4 text-slate-400" />
-          <select
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
-          >
-            {availableDates.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* View mode toggle */}
+          <div className="flex gap-1 p-1 bg-natural-light rounded-full">
+            {(["day", "week", "month"] as ViewMode[]).map(mode => (
+              <button
+                key={mode}
+                onClick={() => { setViewMode(mode); setCurrentPage(1); }}
+                className={clsx(
+                  "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
+                  viewMode === mode
+                    ? "bg-natural-primary text-white shadow-md"
+                    : "text-slate-500 hover:text-natural-primary"
+                )}
+              >
+                {mode === "day" ? "Ngày" : mode === "week" ? "Tuần" : "Tháng"}
+              </button>
             ))}
-          </select>
+          </div>
+
+          {/* Date/Week/Month selector */}
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-slate-400" />
+            {viewMode === "day" && (
+              <select
+                value={selectedDate}
+                onChange={(e) => { setSelectedDate(e.target.value); setCurrentPage(1); }}
+                className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
+              >
+                {availableDates.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            )}
+            {viewMode === "week" && (
+              <select
+                value={selectedWeek}
+                onChange={(e) => { setSelectedWeek(e.target.value); setCurrentPage(1); }}
+                className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
+              >
+                {availableWeeks.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            )}
+            {viewMode === "month" && (
+              <select
+                value={selectedMonth}
+                onChange={(e) => { setSelectedMonth(e.target.value); setCurrentPage(1); }}
+                className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
+              >
+                {availableMonths.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
           <div className="text-right">
             <div className="flex items-baseline justify-end gap-2">
               <span className="text-4xl font-black text-natural-primary">{totalTodayCalories}</span>
@@ -380,62 +535,92 @@ export function NutritionPlan() {
           </motion.div>
         )}
 
-        {/* Meal history by session */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {SESSION_TYPES.map(type => {
-            const typeMeals = filteredMeals.filter(m => {
-              const hour = new Date(m.time).getHours();
-              if (type === "Sáng") return hour >= 5 && hour < 12;
-              if (type === "Trưa") return hour >= 12 && hour < 17;
-              return hour >= 17 && hour < 22;
-            });
-            const sessionCal = typeMeals.reduce((sum, m) => sum + parseCalories(m.notes), 0);
-
-            return (
-              <div key={type} className={clsx(
-                "p-5 rounded-2xl border transition-all",
-                typeMeals.length > 0 ? "bg-white border-natural-border shadow-sm" : "bg-white/50 border-dashed border-slate-200 opacity-50"
-              )}>
-                <div className="flex justify-between items-start mb-3">
-                  <p className={clsx(
-                    "text-[9px] font-black uppercase tracking-widest",
-                    type === "Sáng" ? "text-amber-500" : type === "Trưa" ? "text-emerald-500" : "text-rose-500"
-                  )}>{type}</p>
-                  {typeMeals.length > 0 && (
-                    <span className="text-[10px] font-black text-natural-primary">{sessionCal} kcal</span>
-                  )}
-                </div>
-
-                {typeMeals.length > 0 ? (
-                  <div className="space-y-2">
-                    {typeMeals.map((meal) => (
-                      <div key={meal.id} className="flex justify-between items-center gap-2 py-2 border-b border-natural-border/20 last:border-0">
-                        <p className="text-xs font-bold text-natural-primary-dark line-clamp-1 flex-1">{meal.name}</p>
-                        <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{parseCalories(meal.notes)}</p>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => handleStartEditMeal(meal)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-natural-primary hover:bg-natural-light transition-all"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteMeal(meal.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+        {/* Meal history by date → session → meal */}
+        <div className="space-y-3">
+          {sortedDates.length === 0 ? (
+            <div className="text-center py-10 text-slate-400 font-bold text-sm">Chưa có dữ liệu</div>
+          ) : (
+            sortedDates.map(dateKey => {
+              const d = new Date(dateKey);
+              const dateLabel = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
+              const sessionsInDay = groupedMeals[dateKey];
+              return (
+                <div key={dateKey} className="rounded-2xl bg-white border border-natural-border shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 bg-natural-light/30 border-b border-natural-border/30 flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-natural-primary" />
+                    <span className="text-[10px] font-black text-natural-primary-dark uppercase tracking-widest">{dateLabel}</span>
                   </div>
-                ) : (
-                  <p className="text-[10px] text-slate-300 font-bold italic">Chưa ghi nhận</p>
-                )}
-              </div>
-            );
-          })}
+                  <div className="divide-y divide-natural-border/10">
+                    {SESSION_TYPES.map(session => {
+                      const meals = sessionsInDay[session] || [];
+                      const sessionCal = meals.reduce((sum, m) => sum + parseCalories(m.notes), 0);
+                      return (
+                        <div key={session}>
+                          <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50/50">
+                            <span className={clsx(
+                              "text-[9px] font-black uppercase tracking-widest",
+                              session === "Sáng" ? "text-amber-500" : session === "Trưa" ? "text-emerald-500" : "text-rose-500"
+                            )}>{session}</span>
+                            {meals.length > 0 && (
+                              <span className="text-[9px] font-bold text-slate-400 ml-auto">{sessionCal} kcal</span>
+                            )}
+                          </div>
+                          {meals.length > 0 ? (
+                            meals.map(meal => (
+                              <div key={meal.id} className="flex items-center gap-2 px-4 py-1.5 hover:bg-natural-light/20 transition-colors">
+                                <p className="text-[11px] font-bold text-natural-primary-dark line-clamp-1 flex-1">{meal.name}</p>
+                                <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{parseCalories(meal.notes)}</p>
+                                <div className="flex gap-0.5">
+                                  <button
+                                    onClick={() => handleStartEditMeal(meal)}
+                                    className="p-1 rounded text-slate-400 hover:text-natural-primary hover:bg-natural-light transition-all"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteMeal(meal.id)}
+                                    className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="px-4 py-1 text-[10px] text-slate-300 font-medium italic">Chưa ghi nhận</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 pt-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-xl border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-bold text-slate-500">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-xl border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Edit Modal */}
