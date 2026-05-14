@@ -135,6 +135,7 @@ export function ScreeningLog() {
   };
 
   const handleEdit = (log: LabResult) => {
+    if (isCompleted(log)) return;
     setEditingId(log.id);
     const notesObj = log.notes ? JSON.parse(log.notes) : {};
     setEditData({
@@ -235,6 +236,8 @@ export function ScreeningLog() {
   };
 
   const handleDelete = async (id: string) => {
+    const log = logs.find(l => l.id === id);
+    if (log && isCompleted(log)) return;
     if (id.startsWith("temp-")) {
       setLogs(logs.filter(l => l.id !== id));
       return;
@@ -286,6 +289,40 @@ export function ScreeningLog() {
     }
   };
 
+  const isCompleted = (log: LabResult) => {
+    try {
+      const notesObj = log.notes ? JSON.parse(log.notes) : {};
+      return !!notesObj.completed;
+    } catch {
+      return false;
+    }
+  };
+
+  const toggleCompleted = async (log: LabResult) => {
+    const completed = !isCompleted(log);
+    try {
+      const notesObj = log.notes ? JSON.parse(log.notes) : {};
+      notesObj.completed = completed;
+      const newNotes = JSON.stringify(notesObj);
+
+      const res = await fetch(`/api/lab-results/${log.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: newNotes }),
+      });
+      if (res.ok) {
+        setLogs(prev => prev.map(l => l.id === log.id ? { ...l, notes: newNotes } : l));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Sort logs by recorded_at descending
+  const sortedLogs = [...logs].sort((a, b) =>
+    (b.recorded_at || "").localeCompare(a.recorded_at || "")
+  );
+
   if (loading) {
     return (
       <div className="space-y-8">
@@ -321,6 +358,7 @@ export function ScreeningLog() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-natural-light/30 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-natural-border">
+              <th className="py-6 pl-4">Trạng thái</th>
               <th className="py-6 pl-8">Nội dung tầm soát</th>
               <th className="py-6 px-4">Chỉ số</th>
               <th className="py-6 px-4">Ngưỡng mục tiêu</th>
@@ -331,9 +369,10 @@ export function ScreeningLog() {
             </tr>
           </thead>
           <tbody className="divide-y divide-natural-border/50">
-            {logs.map((log) => {
+            {sortedLogs.map((log) => {
               const level = getLevel(log.value, log.type);
               const isEditing = editingId === log.id;
+              const completed = isCompleted(log);
 
               return (
                 <tr key={log.id} className={clsx(
@@ -342,6 +381,16 @@ export function ScreeningLog() {
                 )}>
                   {isEditing ? (
                     <>
+                      <td className="py-4 pl-4">
+                        <div className="flex items-center justify-center">
+                          <button
+                            onClick={() => toggleCompleted(log)}
+                            className="p-2 rounded-lg bg-emerald-100 text-emerald-500 hover:bg-emerald-200 transition-all"
+                          >
+                            <CheckCircle2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </td>
                       <td className="py-4 pl-8">
                         <div className="space-y-2">
                           <select
@@ -456,6 +505,19 @@ export function ScreeningLog() {
                     </>
                   ) : (
                     <>
+                      <td className="py-6 pl-4">
+                        <button
+                          onClick={() => toggleCompleted(log)}
+                          className={clsx(
+                            "p-2 rounded-xl border transition-all",
+                            completed
+                              ? "bg-emerald-100 text-emerald-500 border-emerald-200"
+                              : "bg-slate-50 text-slate-300 border-slate-100 hover:border-slate-200"
+                          )}
+                        >
+                          <CheckCircle2 className="w-5 h-5" />
+                        </button>
+                      </td>
                       <td className="py-6 pl-8">
                         <div className="space-y-1">
                           <p className="text-sm font-black text-natural-primary-dark uppercase tracking-widest">{getTypeName(log.type, log)}</p>
@@ -490,20 +552,22 @@ export function ScreeningLog() {
                         </p>
                       </td>
                       <td className="py-6 pr-8 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => handleEdit(log)}
-                            className="p-2.5 rounded-xl bg-white border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary transition-all shadow-sm"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(log.id)}
-                            className="p-2.5 rounded-xl bg-white border border-natural-border text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                        {!completed && (
+                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => handleEdit(log)}
+                              className="p-2.5 rounded-xl bg-white border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary transition-all shadow-sm"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(log.id)}
+                              className="p-2.5 rounded-xl bg-white border border-natural-border text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </>
                   )}
