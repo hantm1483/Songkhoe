@@ -73,9 +73,13 @@ export function NutritionPlan() {
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Form state - per-column adding rows
-  const [addingInSession, setAddingInSession] = useState<Record<string, boolean>>({});
-  const [newMealRows, setNewMealRows] = useState<Record<string, { time: string; dish: string; calories: string }>>({});
+  // Add meal form state
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newMeals, setNewMeals] = useState<Record<string, { time: string; dish: string; calories: string }>>({
+    "Sáng": { time: "07:00", dish: "", calories: "" },
+    "Trưa": { time: "12:00", dish: "", calories: "" },
+    "Chiều": { time: "18:00", dish: "", calories: "" },
+  });
   const [saving, setSaving] = useState(false);
 
   // Inline edit state - keyed by meal id
@@ -180,62 +184,63 @@ export function NutritionPlan() {
     }
   };
 
-  const handleStartAddMeal = (session: string) => {
-    setAddingInSession(prev => ({ ...prev, [session]: true }));
-    setNewMealRows(prev => ({
-      ...prev,
-      [session]: { time: getSessionTime(session), dish: "", calories: "" },
-    }));
-  };
-
-  const handleCancelAddMeal = (session: string) => {
-    setAddingInSession(prev => {
-      const next = { ...prev };
-      delete next[session];
-      return next;
-    });
-    setNewMealRows(prev => {
-      const next = { ...prev };
-      delete next[session];
-      return next;
-    });
-  };
-
-  const handleUpdateNewMealRow = (session: string, field: "time" | "dish" | "calories", value: string) => {
-    setNewMealRows(prev => ({
+  const handleUpdateNewMeal = (session: string, field: "time" | "dish" | "calories", value: string) => {
+    setNewMeals(prev => ({
       ...prev,
       [session]: { ...prev[session], [field]: value },
     }));
   };
 
-  const handleSaveNewMeal = async (session: string) => {
-    const row = newMealRows[session];
-    if (!row || !row.dish || !row.calories) return;
+  const handleSaveMeals = async () => {
+    // Filter sessions that have at least dish or calories filled
+    const sessionsToSave = SESSION_TYPES.filter(s => newMeals[s].dish || newMeals[s].calories);
+    if (sessionsToSave.length === 0) {
+      setShowAddForm(false);
+      return;
+    }
 
     setSaving(true);
     try {
       const dateStr = selectedDate || new Date().toISOString().split("T")[0];
-      const time = `${dateStr}T${row.time}:00`;
-      const res = await fetch("/api/meals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: row.dish,
-          notes: `${row.calories} kcal`,
-          time: time,
-        }),
+      const promises = sessionsToSave.map(session => {
+        const row = newMeals[session];
+        if (!row.dish && !row.calories) return null;
+        const time = `${dateStr}T${row.time}:00`;
+        return fetch("/api/meals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: row.dish,
+            notes: row.calories ? `${row.calories} kcal` : null,
+            time: time,
+          }),
+        });
       });
 
-      if (res.ok) {
-        handleCancelAddMeal(session);
-        await loadMeals();
-      }
+      await Promise.all(promises.filter(Boolean));
+      // Reset form
+      setNewMeals({
+        "Sáng": { time: "07:00", dish: "", calories: "" },
+        "Trưa": { time: "12:00", dish: "", calories: "" },
+        "Chiều": { time: "18:00", dish: "", calories: "" },
+      });
+      setShowAddForm(false);
+      await loadMeals();
     } catch (err) {
       console.error(err);
       alert("Lưu thất bại");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCancelForm = () => {
+    setShowAddForm(false);
+    setNewMeals({
+      "Sáng": { time: "07:00", dish: "", calories: "" },
+      "Trưa": { time: "12:00", dish: "", calories: "" },
+      "Chiều": { time: "18:00", dish: "", calories: "" },
+    });
   };
 
   const handleDeleteMeal = async (id: string) => {
@@ -383,24 +388,19 @@ export function NutritionPlan() {
     );
   }
 
-  const renderMealRow = (meal: MealEntry, session: string) => {
+  const renderMealRow = (meal: MealEntry) => {
     const isEditing = meal.id in editingMeals;
     const edit = editingMeals[meal.id];
 
     if (isEditing && edit) {
       return (
         <div key={meal.id} className="flex items-center gap-1.5 py-1.5 px-2 border-b border-natural-border/10 last:border-0 bg-natural-light/30">
-          <button
-            onClick={() => handleStartAddMeal(session)}
-            className={clsx(
-              "w-5 h-5 rounded flex items-center justify-center text-white shadow-sm transition-all hover:scale-110",
-              session === "Sáng" ? "bg-amber-400 hover:bg-amber-500" :
-                session === "Trưa" ? "bg-emerald-400 hover:bg-emerald-500" :
-                  "bg-rose-400 hover:bg-rose-500"
-            )}
-          >
-            <Plus className="w-3 h-3" />
-          </button>
+          <input
+            type="time"
+            value={meal.time ? meal.time.split("T")[1]?.slice(0, 5) : ""}
+            disabled
+            className="w-16 text-[10px] font-bold p-1.5 rounded-lg bg-white/50 border border-natural-border outline-none text-slate-400"
+          />
           <input
             type="text"
             value={edit.name}
@@ -429,24 +429,11 @@ export function NutritionPlan() {
       );
     }
 
-    const headerColor = session === "Sáng" ? "text-amber-500" : session === "Trưa" ? "text-emerald-500" : "text-rose-500";
-
     return (
       <div key={meal.id} className="flex items-center gap-1.5 py-1.5 px-2 border-b border-natural-border/10 last:border-0">
-        <button
-          onClick={() => handleStartAddMeal(session)}
-          className={clsx(
-            "w-5 h-5 rounded flex items-center justify-center text-white shadow-sm transition-all hover:scale-110",
-            session === "Sáng" ? "bg-amber-400 hover:bg-amber-500" :
-              session === "Trưa" ? "bg-emerald-400 hover:bg-emerald-500" :
-                "bg-rose-400 hover:bg-rose-500"
-          )}
-        >
-          <Plus className="w-3 h-3" />
-        </button>
-        <p className="text-[10px] font-bold text-slate-400 w-12">{meal.time ? meal.time.split("T")[1]?.slice(0, 5) : ""}</p>
+        <span className="w-16 text-[10px] font-bold text-slate-400">{meal.time ? meal.time.split("T")[1]?.slice(0, 5) : ""}</span>
         <p className="text-[11px] font-bold text-natural-primary-dark line-clamp-1 flex-1">{meal.name}</p>
-        <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{parseCalories(meal.notes)}</p>
+        <p className="w-16 text-[10px] font-bold text-slate-400 text-right">{parseCalories(meal.notes)}</p>
         <div className="flex gap-0.5">
           <button
             onClick={() => handleStartEditMeal(meal)}
@@ -556,17 +543,96 @@ export function NutritionPlan() {
         />
       </div>
 
-      {/* Add meal form - inline 3-column grid */}
+      {/* Add meal form & History */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Lịch sử bữa ăn</h4>
+          {!showAddForm && (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-natural-primary text-white text-[10px] font-black uppercase tracking-widest hover:bg-natural-primary/90 transition-all shadow-md shadow-natural-primary/20"
+            >
+              <Plus className="h-3 w-3" /> Thêm bữa ăn
+            </button>
+          )}
         </div>
 
-        <div className="rounded-[32px] bg-white border-2 border-natural-primary shadow-xl overflow-hidden">
+        {showAddForm && (
+          <div className="rounded-[32px] bg-white border-2 border-natural-primary shadow-xl p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-black text-natural-primary uppercase tracking-widest">Thêm bữa ăn mới</h4>
+            </div>
+
+            <div className="grid grid-cols-3 divide-x divide-natural-border/30 gap-4">
+              {SESSION_TYPES.map(session => {
+                const row = newMeals[session];
+                return (
+                  <div key={session} className="space-y-3">
+                    <div className={clsx(
+                      "text-center p-2 rounded-xl border",
+                      session === "Sáng" ? "bg-amber-50 text-amber-600 border-amber-100" :
+                        session === "Trưa" ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                          "bg-rose-50 text-rose-600 border-rose-100"
+                    )}>
+                      <span className="text-[10px] font-black uppercase tracking-widest">{session}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Giờ</label>
+                        <input
+                          type="time"
+                          value={row.time}
+                          onChange={(e) => handleUpdateNewMeal(session, "time", e.target.value)}
+                          className="w-full text-[11px] font-bold p-2 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Món ăn</label>
+                        <input
+                          type="text"
+                          value={row.dish}
+                          onChange={(e) => handleUpdateNewMeal(session, "dish", e.target.value)}
+                          placeholder="Tên món..."
+                          className="w-full text-[11px] font-bold p-2 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Calo</label>
+                        <input
+                          type="number"
+                          value={row.calories}
+                          onChange={(e) => handleUpdateNewMeal(session, "calories", e.target.value)}
+                          placeholder="Kcal"
+                          className="w-full text-[11px] font-bold p-2 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4 border-t border-natural-border/30">
+              <button
+                onClick={handleCancelForm}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition-all"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSaveMeals}
+                disabled={saving}
+                className="px-6 py-2.5 rounded-xl bg-natural-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-natural-primary/20 disabled:opacity-50 hover:bg-natural-primary/90 transition-all"
+              >
+                {saving ? "Đang lưu..." : "Lưu bữa ăn"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-[32px] bg-white border border-natural-border shadow-sm overflow-hidden">
           <div className="grid grid-cols-3 divide-x divide-natural-border/30">
             {SESSION_TYPES.map(session => {
-              const isAddingRow = addingInSession[session] ?? false;
-              const newRow = newMealRows[session];
               const sessionMeals = displayMeals.filter(m => {
                 const d = parseDate(m.time);
                 if (!d) return false;
@@ -579,77 +645,21 @@ export function NutritionPlan() {
                   "bg-rose-50 text-rose-600 border-rose-100";
 
               return (
-                <div key={session} className="p-4 transition-all min-h-[200px]">
-                  {/* Column header */}
+                <div key={session} className="p-4 transition-all min-h-[160px]">
                   <div className={clsx(
                     "flex items-center justify-between mb-3 p-2 rounded-xl border",
                     headerColor
                   )}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest">{session}</span>
-                      {sessionCal > 0 && (
-                        <span className="text-[9px] font-bold opacity-70">{sessionCal} kcal</span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleStartAddMeal(session)}
-                      className={clsx(
-                        "w-6 h-6 rounded-lg flex items-center justify-center text-white shadow-sm transition-all hover:scale-110",
-                        session === "Sáng" ? "bg-amber-400 hover:bg-amber-500" :
-                          session === "Trưa" ? "bg-emerald-400 hover:bg-emerald-500" :
-                            "bg-rose-400 hover:bg-rose-500"
-                      )}
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{session}</span>
+                    {sessionCal > 0 && (
+                      <span className="text-[9px] font-bold opacity-70">{sessionCal} kcal</span>
+                    )}
                   </div>
 
-                  {/* New meal row */}
-                  {isAddingRow && newRow && (
-                    <div className="flex items-center gap-1.5 py-2 mb-2 px-2 rounded-xl bg-natural-light/50 border border-dashed border-natural-border">
-                      <span className="w-14 text-[9px] font-bold">
-                        <input
-                          type="time"
-                          value={newRow.time}
-                          onChange={(e) => handleUpdateNewMealRow(session, "time", e.target.value)}
-                          className="w-full text-[10px] font-bold p-1 rounded bg-white border border-natural-border outline-none focus:border-natural-primary"
-                        />
-                      </span>
-                      <input
-                        type="text"
-                        value={newRow.dish}
-                        onChange={(e) => handleUpdateNewMealRow(session, "dish", e.target.value)}
-                        placeholder="Tên món..."
-                        className="flex-1 text-[11px] font-bold p-1.5 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary"
-                      />
-                      <input
-                        type="number"
-                        value={newRow.calories}
-                        onChange={(e) => handleUpdateNewMealRow(session, "calories", e.target.value)}
-                        placeholder="Kcal"
-                        className="w-16 text-[10px] font-bold p-1.5 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary"
-                      />
-                      <button
-                        onClick={() => handleSaveNewMeal(session)}
-                        disabled={saving}
-                        className="p-1 rounded text-emerald-500 hover:bg-emerald-50 transition-all disabled:opacity-50"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleCancelAddMeal(session)}
-                        className="p-1 rounded text-slate-400 hover:bg-slate-100 transition-all"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Existing meals list */}
                   {sessionMeals.length > 0 ? (
-                    <div className="space-y-0.5">{sessionMeals.map(m => renderMealRow(m, session))}</div>
+                    <div className="space-y-0.5">{sessionMeals.map(m => renderMealRow(m))}</div>
                   ) : (
-                    !isAddingRow && <p className="text-[10px] text-slate-300 font-medium italic text-center py-4">Chưa ghi nhận</p>
+                    <p className="text-[10px] text-slate-300 font-medium italic text-center py-4">Chưa ghi nhận</p>
                   )}
                 </div>
               );
