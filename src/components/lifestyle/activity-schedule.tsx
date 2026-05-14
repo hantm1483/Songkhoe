@@ -50,6 +50,12 @@ export function ActivitySchedule() {
   // Initialize dates on client-side only to avoid hydration mismatch
   const [clientReady, setClientReady] = useState(false);
 
+  // Date formatting function - must be declared BEFORE useMemo
+  function formatDate(dateStr: string): string {
+    const d = new Date(dateStr);
+    return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+  }
+
   const loadSchedule = async () => {
     try {
       const res = await fetch("/api/activity-schedules?limit=50");
@@ -106,12 +112,6 @@ export function ActivitySchedule() {
       return timeB.localeCompare(timeA);
     });
   }, [schedule, selectedDate]);
-
-  // Date formatting function - must be defined before useMemo that uses it
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  };
 
   const toggleTask = async (id: string, currentCompleted: boolean) => {
     const newCompleted = !currentCompleted;
