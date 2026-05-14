@@ -384,7 +384,7 @@ export function ScreeningLog() {
                       <td className="py-4 pl-4">
                         <div className="flex items-center justify-center">
                           <button
-                            onClick={() => toggleCompleted(log)}
+                            onClick={(e) => { e.stopPropagation(); toggleCompleted(log); }}
                             className="p-2 rounded-lg bg-emerald-100 text-emerald-500 hover:bg-emerald-200 transition-all"
                           >
                             <CheckCircle2 className="w-5 h-5" />
