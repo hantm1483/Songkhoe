@@ -9,20 +9,77 @@ import { LAB_RESULT_TYPE_OPTIONS } from "@/lib/validations";
 
 const LAB_RESULT_TYPE_NAMES: Record<string, string> = {
   hba1c: 'HbA1c',
+  glucose: 'Đường huyết',
+  blood_pressure: 'Huyết áp',
+  eye_exam: 'Soi đáy mắt',
+  kidney: 'Protein niệu',
   cholesterol: 'Cholesterol',
   creatinine: 'Creatinine',
   other: 'Khác',
 };
 
 const items = [
-  { title: 'HbA1c', target: '< 7.0%', frequency: 'Mỗi 3-6 tháng', meaning: 'Đánh giá kiểm soát đường huyết trong 3 tháng qua.' },
-  { title: 'Đường huyết lúc đói', target: '3.9 - 7.2 mmol/L', frequency: 'Hàng ngày / Định kỳ', meaning: 'Kiểm soát đường huyết tại thời điểm đo.' },
-  { title: 'Huyết áp', target: '< 130/80 mmHg', frequency: 'Mỗi lần thăm khám', meaning: 'Giảm nguy cơ đột quỵ và biến chứng tim mạch.' },
-  { title: 'Soi đáy mắt', target: 'Không tổn thương', frequency: 'Định kỳ 12 tháng', meaning: 'Phát hiện sớm biến chứng võng mạc gây mù lòa.' },
-  { title: 'Protein niệu (Thận)', target: 'Âm tính', frequency: 'Định kỳ 12 tháng', meaning: 'Phát hiện sớm dấu hiệu suy thận do tiểu đường.' },
+  { title: 'HbA1c', type: 'hba1c', target: '< 7.0%', frequency: 'Mỗi 3-6 tháng', meaning: 'Đánh giá kiểm soát đường huyết trong 3 tháng qua.' },
+  { title: 'Đường huyết lúc đói', type: 'glucose', target: '3.9 - 7.2 mmol/L', frequency: 'Hàng ngày / Định kỳ', meaning: 'Kiểm soát đường huyết tại thời điểm đo.' },
+  { title: 'Huyết áp', type: 'blood_pressure', target: '< 130/80 mmHg', frequency: 'Mỗi lần thăm khám', meaning: 'Giảm nguy cơ đột quỵ và biến chứng tim mạch.' },
+  { title: 'Soi đáy mắt', type: 'eye_exam', target: 'Không tổn thương', frequency: 'Định kỳ 12 tháng', meaning: 'Phát hiện sớm biến chứng võng mạc gây mù lòa.' },
+  { title: 'Protein niệu (Thận)', type: 'kidney', target: 'Âm tính', frequency: 'Định kỳ 12 tháng', meaning: 'Phát hiện sớm dấu hiệu suy thận do tiểu đường.' },
 ];
 
 export function ScreeningList() {
+  const [labResults, setLabResults] = useState<LabResult[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadLabResults() {
+      try {
+        const res = await fetch("/api/lab-results");
+        if (!res.ok) throw new Error("Failed to fetch");
+        const json = await res.json();
+        setLabResults(json.data?.results || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadLabResults();
+  }, []);
+
+  const isCompleted = (log: LabResult) => {
+    try {
+      const notesObj = log.notes ? JSON.parse(log.notes) : {};
+      return !!notesObj.completed;
+    } catch {
+      return false;
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+  };
+
+  const getReminderDate = (type: string) => {
+    const uncompletedLogs = labResults.filter(log => log.type === type && !isCompleted(log));
+    if (uncompletedLogs.length === 0) return null;
+    // Sort by recorded_at descending and get the most recent
+    const sorted = [...uncompletedLogs].sort((a, b) =>
+      (b.recorded_at || "").localeCompare(a.recorded_at || "")
+    );
+    return sorted[0]?.recorded_at || null;
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center justify-center py-12">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-natural-border border-t-natural-primary" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="p-8 rounded-[32px] bg-natural-beige border border-natural-border flex gap-6 items-center">
@@ -50,6 +107,7 @@ export function ScreeningList() {
           </thead>
           <tbody className="divide-y divide-natural-border/50">
             {items.map((item, i) => {
+              const reminderDate = getReminderDate(item.type);
               return (
                 <tr key={i} className="group hover:bg-natural-light/10 transition-colors">
                   <td className="py-6 pl-8">
@@ -64,7 +122,13 @@ export function ScreeningList() {
                     <span className="text-xs font-bold text-slate-500 font-mono">{item.frequency}</span>
                   </td>
                   <td className="py-6 px-4">
-                    <span className="text-[10px] font-bold text-slate-300 uppercase italic">Chưa có lịch</span>
+                    {reminderDate ? (
+                      <span className="text-[10px] font-bold text-natural-primary uppercase tracking-widest">
+                        {formatDate(reminderDate)}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-300 uppercase italic">Chưa có lịch</span>
+                    )}
                   </td>
                   <td className="py-6 pr-8">
                     <p className="text-xs font-medium text-slate-500 leading-relaxed max-w-sm">
@@ -117,8 +181,8 @@ export function ScreeningLog() {
   }, []);
 
   const handleAddRow = () => {
-    setEditingId(null);
-    setEditData({});
+    // Guard: if already editing, don't create new row
+    if (editingId !== null) return;
     const newId = `temp-${Date.now()}`;
     const newRow: LabResult = {
       id: newId,
@@ -380,13 +444,13 @@ export function ScreeningLog() {
               const completed = isCompleted(log);
 
               return (
-                <tr key={log.id} className={clsx(
+                <tr key={log.id} onClick={(e) => e.stopPropagation()} className={clsx(
                   "group transition-colors",
                   isEditing ? "bg-natural-light/20" : "hover:bg-natural-light/10"
                 )}>
                   {isEditing ? (
                     <>
-                      <td className="py-4 pl-4">
+                      <td className="py-4 pl-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center">
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleCompleted(log); }}
@@ -510,7 +574,7 @@ export function ScreeningLog() {
                     </>
                   ) : (
                     <>
-                      <td className="py-6 pl-4">
+                      <td className="py-6 pl-4" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleCompleted(log); }}
                           className={clsx(
