@@ -1,16 +1,25 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Calendar, Edit2, Trash2, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Calendar, Edit2, Trash2, ChevronLeft, ChevronRight, Search, Check, X } from "lucide-react";
 import type { GlucoseLog } from "@/lib/supabase/database.types";
 
 interface GlucoseLogProps {
   refreshTrigger?: number;
 }
 
+const TIMING_OPTIONS = [
+  { value: "fasting", label: "Trước ăn sáng" },
+  { value: "before_meal", label: "Trước bữa ăn" },
+  { value: "after_meal", label: "Sau bữa ăn" },
+  { value: "bedtime", label: "Trước ngủ" },
+];
+
 export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
   const [logs, setLogs] = useState<GlucoseLog[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination
   const [daysPerPage, setDaysPerPage] = useState(3);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -19,8 +28,16 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
   const [timingSearch, setTimingSearch] = useState("");
   const [valueSearch, setValueSearch] = useState("");
 
+  // Sorting
   const [sortField, setSortField] = useState<"measured_at" | "value" | "timing">("measured_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  // Inline editing
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [editTiming, setEditTiming] = useState<string>("");
+  const [editNotes, setEditNotes] = useState<string>("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function loadLogs() {
@@ -49,6 +66,58 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
     }
   };
 
+  const handleEdit = (log: GlucoseLog) => {
+    setEditingId(log.id);
+    setEditValue(log.value.toString());
+    setEditTiming(log.timing || "fasting");
+    setEditNotes(log.notes || "");
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    const numValue = parseFloat(editValue);
+    if (isNaN(numValue) || numValue <= 0) {
+      alert("Vui lòng nhập chỉ số hợp lệ");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/glucose/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          value: numValue,
+          timing: editTiming,
+          notes: editNotes || undefined,
+        }),
+      });
+
+      if (res.ok) {
+        // Update local state
+        setLogs(logs.map(log =>
+          log.id === id
+            ? { ...log, value: numValue, timing: editTiming as GlucoseLog["timing"], notes: editNotes || null }
+            : log
+        ));
+        setEditingId(null);
+      } else {
+        alert("Lưu thất bại");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Lưu thất bại");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditValue("");
+    setEditTiming("fasting");
+    setEditNotes("");
+  };
+
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
@@ -67,13 +136,8 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
   };
 
   const getTimingLabel = (timing: string | null) => {
-    const map: Record<string, string> = {
-      fasting: "Trước ăn sáng",
-      before_meal: "Trước bữa ăn",
-      after_meal: "Sau bữa ăn",
-      bedtime: "Trước ngủ",
-    };
-    return timing ? map[timing] || timing : "Khác";
+    const found = TIMING_OPTIONS.find(t => t.value === timing);
+    return found ? found.label : "Khác";
   };
 
   // Group logs by date and sort descending (most recent first)
@@ -111,7 +175,7 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
     if (valueSearch) {
       const query = valueSearch.toLowerCase();
       result = result.filter(([_, dayLogs]) =>
-        dayLogs.some(log => log.value.toString().includes(query))
+        dayLogs.some(log => log.value.toString().toLowerCase().includes(query))
       );
     }
 
@@ -198,6 +262,115 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
     );
   };
 
+  const renderLogRow = (log: GlucoseLog, status: { label: string; className: string }) => {
+    const isEditing = editingId === log.id;
+
+    if (isEditing) {
+      return (
+        <tr
+          key={log.id}
+          className="bg-white border-2 border-natural-primary/30 rounded-xl shadow-md"
+        >
+          <td className="py-3 pl-6 rounded-l-xl">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-3 h-3 text-natural-primary" />
+              <span className="font-bold text-natural-primary-dark text-xs">{formatDate(log.measured_at)}</span>
+              <span className="text-[10px] font-mono text-slate-400">{formatTime(log.measured_at)}</span>
+            </div>
+          </td>
+          <td className="py-3">
+            <select
+              value={editTiming}
+              onChange={(e) => setEditTiming(e.target.value)}
+              className="w-full px-2 py-1 rounded-lg border border-natural-border bg-natural-light/50 text-[10px] font-bold text-natural-primary-dark focus:border-natural-primary outline-none"
+            >
+              {TIMING_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </td>
+          <td className="py-3">
+            <input
+              type="number"
+              step="0.1"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              className="w-20 px-2 py-1 rounded-lg border border-natural-border bg-natural-light/50 text-sm font-bold text-natural-primary-dark focus:border-natural-primary outline-none"
+            />
+          </td>
+          <td className="py-3 text-center">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-widest ${status.className}`}>
+              {status.label}
+            </span>
+          </td>
+          <td className="py-3 pr-6 text-right rounded-r-xl">
+            <div className="flex items-center justify-end gap-1">
+              <button
+                onClick={() => handleSaveEdit(log.id)}
+                disabled={saving}
+                className="p-1.5 rounded-lg bg-natural-primary text-white hover:bg-natural-primary-dark transition-all shadow-sm"
+              >
+                <Check className="w-3 h-3" />
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                disabled={saving}
+                className="p-1.5 rounded-lg bg-slate-200 text-slate-500 hover:bg-slate-300 transition-all shadow-sm"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          </td>
+        </tr>
+      );
+    }
+
+    return (
+      <tr
+        key={log.id}
+        className="group bg-natural-light/10 hover:bg-natural-light/30 transition-all rounded-xl border border-transparent hover:border-natural-primary/20"
+      >
+        <td className="py-3 pl-6 rounded-l-xl">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-3 h-3 text-natural-primary" />
+            <span className="font-bold text-natural-primary-dark text-xs">{formatDate(log.measured_at)}</span>
+            <span className="text-[10px] font-mono text-slate-400">{formatTime(log.measured_at)}</span>
+          </div>
+        </td>
+        <td className="py-3">
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{getTimingLabel(log.timing)}</span>
+        </td>
+        <td className="py-3">
+          <div className="flex items-baseline gap-1">
+            <span className="text-lg font-black text-natural-primary-dark leading-none">{log.value}</span>
+            <span className="text-[8px] font-bold text-slate-400 uppercase">mmol/L</span>
+          </div>
+        </td>
+        <td className="py-3 text-center">
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-widest ${status.className}`}>
+            {status.label}
+          </span>
+        </td>
+        <td className="py-3 pr-6 text-right rounded-r-xl">
+          <div className="flex items-center justify-end gap-1">
+            <button
+              onClick={() => handleEdit(log)}
+              className="p-1.5 rounded-lg bg-white border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary transition-all shadow-sm"
+            >
+              <Edit2 className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => handleDelete(log.id)}
+              className="p-1.5 rounded-lg bg-white border border-natural-border text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <div className="min-w-[600px] space-y-4">
       {/* Table - compact rows */}
@@ -280,47 +453,7 @@ export function GlucoseLog({ refreshTrigger }: GlucoseLogProps) {
           {paginatedGroups.map(([dateKey, dayLogs]) =>
             dayLogs.map((log) => {
               const status = getStatusLabel(log.value);
-              return (
-                <tr
-                  key={log.id}
-                  className="group bg-natural-light/10 hover:bg-natural-light/30 transition-all rounded-xl border border-transparent hover:border-natural-primary/20"
-                >
-                  <td className="py-3 pl-6 rounded-l-xl">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-3 h-3 text-natural-primary" />
-                      <span className="font-bold text-natural-primary-dark text-xs">{formatDate(log.measured_at)}</span>
-                      <span className="text-[10px] font-mono text-slate-400">{formatTime(log.measured_at)}</span>
-                    </div>
-                  </td>
-                  <td className="py-3">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{getTimingLabel(log.timing)}</span>
-                  </td>
-                  <td className="py-3">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-black text-natural-primary-dark leading-none">{log.value}</span>
-                      <span className="text-[8px] font-bold text-slate-400 uppercase">mmol/L</span>
-                    </div>
-                  </td>
-                  <td className="py-3 text-center">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-widest ${status.className}`}>
-                      {status.label}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-6 text-right rounded-r-xl">
-                    <div className="flex items-center justify-end gap-1">
-                      <button className="p-1.5 rounded-lg bg-white border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary transition-all shadow-sm">
-                        <Edit2 className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(log.id)}
-                        className="p-1.5 rounded-lg bg-white border border-natural-border text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
+              return renderLogRow(log, status);
             })
           )}
         </tbody>
