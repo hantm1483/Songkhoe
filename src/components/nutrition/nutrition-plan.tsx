@@ -11,7 +11,6 @@ interface MealEntry {
   gi_level: string | null;
   notes: string | null;
   time: string;
-  calories?: number;
 }
 
 interface DateOption {
@@ -33,6 +32,25 @@ interface MonthOption {
 
 type ViewMode = "day" | "week" | "month";
 const PAGE_SIZE = 5;
+const SESSION_TYPES = ["Sáng", "Trưa", "Chiều"];
+
+function formatDateLabel(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+function getSessionFromHour(hour: number): string {
+  if (hour >= 5 && hour < 12) return "Sáng";
+  if (hour >= 12 && hour < 17) return "Trưa";
+  return "Chiều";
+}
+
+function parseCalories(notes: string | null): number {
+  if (!notes) return 0;
+  const match = notes.match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
 
 export function NutritionPlan() {
   const [mealHistory, setMealHistory] = useState<MealEntry[]>([]);
@@ -43,17 +61,9 @@ export function NutritionPlan() {
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [availableDates, setAvailableDates] = useState<DateOption[]>([]);
-  const [availableWeeks, setAvailableWeeks] = useState<WeekOption[]>([]);
-  const [availableMonths, setAvailableMonths] = useState<MonthOption[]>([]);
-  const [optionsBuilt, setOptionsBuilt] = useState(false);
-
-  // Form state
+  // Form state - use stable initial values
   const [isAdding, setIsAdding] = useState(false);
-  const [sessionMeta, setSessionMeta] = useState({
-    date: new Date().toISOString().split("T")[0],
-    type: "Sáng",
-  });
+  const [sessionMeta, setSessionMeta] = useState({ date: "", type: "Sáng" });
   const [sessionDishes, setSessionDishes] = useState([{ dish: "", calories: "" }]);
   const [saving, setSaving] = useState(false);
 
@@ -61,15 +71,12 @@ export function NutritionPlan() {
   const [editingMeal, setEditingMeal] = useState<MealEntry | null>(null);
   const [editForm, setEditForm] = useState({ name: "", calories: "" });
 
-  const SESSION_TYPES = ["Sáng", "Trưa", "Chiều"];
-
   const loadMeals = useCallback(async () => {
     try {
       const res = await fetch("/api/meals?limit=500");
       if (!res.ok) throw new Error("Failed to fetch");
       const json = await res.json();
-      const meals: MealEntry[] = json.data?.meals || [];
-      setMealHistory(meals);
+      setMealHistory(json.data?.meals || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -81,37 +88,39 @@ export function NutritionPlan() {
     loadMeals();
   }, [loadMeals]);
 
-  // Build filter options from data
-  useEffect(() => {
-    if (mealHistory.length === 0 || optionsBuilt) return;
+  // Derive available options from mealHistory - stable across renders
+  const { availableDates, availableWeeks, availableMonths } = useMemo(() => {
+    if (mealHistory.length === 0) {
+      return { availableDates: [], availableWeeks: [], availableMonths: [] };
+    }
 
-    // Build date options (unique dates)
-    const dateSet = new Set<string>();
+    // Date options
     const dateMap = new Map<string, string>();
     mealHistory.forEach(meal => {
       const dateKey = meal.time.split("T")[0];
-      dateSet.add(dateKey);
-      const d = new Date(dateKey);
-      const label = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
-      dateMap.set(dateKey, label);
+      if (!dateMap.has(dateKey)) {
+        dateMap.set(dateKey, formatDateLabel(dateKey));
+      }
     });
-    const distinctDates = Array.from(dateSet).sort((a, b) => b.localeCompare(a));
-    setAvailableDates(distinctDates.map(v => ({ value: v, label: dateMap.get(v) || v })));
+    const dates = Array.from(dateMap.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([value, label]) => ({ value, label }));
 
-    // Build week options
+    // Week options
     const weekMap = new Map<string, WeekOption>();
     mealHistory.forEach(meal => {
       const d = new Date(meal.time);
+      if (isNaN(d.getTime())) return;
       const year = d.getFullYear();
       const firstDayOfYear = new Date(year, 0, 1);
       const pastDays = (d.getTime() - firstDayOfYear.getTime()) / (1000 * 60 * 60 * 24);
       const weekNum = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
       const weekKey = `${year}-W${weekNum}`;
-      const startOfWeek = new Date(d);
-      startOfWeek.setDate(d.getDate() - d.getDay());
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
       if (!weekMap.has(weekKey)) {
+        const startOfWeek = new Date(d);
+        startOfWeek.setDate(d.getDate() - d.getDay());
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
         weekMap.set(weekKey, {
           label: `Tuần ${weekNum} - ${d.toLocaleDateString("vi-VN", { month: "short", year: "numeric" })}`,
           value: weekKey,
@@ -120,13 +129,13 @@ export function NutritionPlan() {
         });
       }
     });
-    const sortedWeeks = Array.from(weekMap.values()).sort((a, b) => b.value.localeCompare(a.value));
-    setAvailableWeeks(sortedWeeks);
+    const weeks = Array.from(weekMap.values()).sort((a, b) => b.value.localeCompare(a.value));
 
-    // Build month options
+    // Month options
     const monthMap = new Map<string, MonthOption>();
     mealHistory.forEach(meal => {
       const d = new Date(meal.time);
+      if (isNaN(d.getTime())) return;
       const monthKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
       if (!monthMap.has(monthKey)) {
         monthMap.set(monthKey, {
@@ -135,21 +144,25 @@ export function NutritionPlan() {
         });
       }
     });
-    const sortedMonths = Array.from(monthMap.values()).sort((a, b) => b.value.localeCompare(a.value));
-    setAvailableMonths(sortedMonths);
+    const months = Array.from(monthMap.values()).sort((a, b) => b.value.localeCompare(a.value));
 
-    // Set defaults
-    const today = new Date().toISOString().split("T")[0];
-    if (distinctDates.includes(today)) {
-      setSelectedDate(today);
-    } else if (distinctDates.length > 0) {
-      setSelectedDate(distinctDates[0]);
+    return { availableDates: dates, availableWeeks: weeks, availableMonths: months };
+  }, [mealHistory]);
+
+  // Set default selections when options become available
+  useEffect(() => {
+    if (!selectedDate && availableDates.length > 0) {
+      const today = new Date().toISOString().split("T")[0];
+      const todayExists = availableDates.some(d => d.value === today);
+      setSelectedDate(todayExists ? today : availableDates[0].value);
     }
-    if (sortedWeeks.length > 0) setSelectedWeek(sortedWeeks[0].value);
-    if (sortedMonths.length > 0) setSelectedMonth(sortedMonths[0].value);
-
-    setOptionsBuilt(true);
-  }, [mealHistory, optionsBuilt]);
+    if (!selectedWeek && availableWeeks.length > 0) {
+      setSelectedWeek(availableWeeks[0].value);
+    }
+    if (!selectedMonth && availableMonths.length > 0) {
+      setSelectedMonth(availableMonths[0].value);
+    }
+  }, [availableDates, availableWeeks, availableMonths, selectedDate, selectedWeek, selectedMonth]);
 
   const handleAddDishRow = () => {
     setSessionDishes([...sessionDishes, { dish: "", calories: "" }]);
@@ -165,6 +178,15 @@ export function NutritionPlan() {
     const updated = [...sessionDishes];
     updated[index][field] = value;
     setSessionDishes(updated);
+  };
+
+  const getSessionTime = (type: string): string => {
+    switch (type) {
+      case "Sáng": return "07:00";
+      case "Trưa": return "12:00";
+      case "Chiều": return "18:00";
+      default: return "12:00";
+    }
   };
 
   const handleSaveSession = async () => {
@@ -189,6 +211,7 @@ export function NutritionPlan() {
       await Promise.all(promises);
       setIsAdding(false);
       setSessionDishes([{ dish: "", calories: "" }]);
+      setSessionMeta({ date: "", type: "Sáng" });
       await loadMeals();
     } catch (err) {
       console.error(err);
@@ -198,20 +221,11 @@ export function NutritionPlan() {
     }
   };
 
-  const getSessionTime = (type: string): string => {
-    switch (type) {
-      case "Sáng": return "07:00";
-      case "Trưa": return "12:00";
-      case "Chiều": return "18:00";
-      default: return "12:00";
-    }
-  };
-
   const handleDeleteMeal = async (id: string) => {
     try {
       const res = await fetch(`/api/meals/${id}`, { method: "DELETE" });
       if (res.ok) {
-        setMealHistory(mealHistory.filter(m => m.id !== id));
+        setMealHistory(prev => prev.filter(m => m.id !== id));
       }
     } catch (err) {
       console.error(err);
@@ -220,7 +234,6 @@ export function NutritionPlan() {
 
   const handleStartEditMeal = (meal: MealEntry) => {
     setEditingMeal(meal);
-    // Extract calories from notes if available
     const notes = meal.notes || "";
     const calMatch = notes.match(/(\d+)/);
     setEditForm({
@@ -242,7 +255,7 @@ export function NutritionPlan() {
       });
 
       if (res.ok) {
-        setMealHistory(mealHistory.map(m =>
+        setMealHistory(prev => prev.map(m =>
           m.id === editingMeal.id
             ? { ...m, name: editForm.name, notes: editForm.calories ? `${editForm.calories} kcal` : null }
             : m
@@ -256,24 +269,38 @@ export function NutritionPlan() {
 
   // Filter meals by view mode
   const filteredMeals = useMemo(() => {
-    let meals: MealEntry[] = [];
+    if (mealHistory.length === 0) return [];
     if (viewMode === "day" && selectedDate) {
-      meals = mealHistory.filter(m => m.time.startsWith(selectedDate));
-    } else if (viewMode === "week" && selectedWeek) {
+      return mealHistory.filter(m => m.time.startsWith(selectedDate));
+    }
+    if (viewMode === "week" && selectedWeek) {
       const weekOpt = availableWeeks.find(w => w.value === selectedWeek);
       if (weekOpt) {
-        meals = mealHistory.filter(m => {
+        return mealHistory.filter(m => {
           const d = m.time.split("T")[0];
           return d >= weekOpt.startDate && d <= weekOpt.endDate;
         });
       }
-    } else if (viewMode === "month" && selectedMonth) {
-      meals = mealHistory.filter(m => m.time.startsWith(selectedMonth));
-    } else {
-      meals = mealHistory;
     }
-    return meals;
+    if (viewMode === "month" && selectedMonth) {
+      return mealHistory.filter(m => m.time.startsWith(selectedMonth));
+    }
+    return mealHistory;
   }, [viewMode, selectedDate, selectedWeek, selectedMonth, mealHistory, availableWeeks]);
+
+  const sessionTotals = useMemo(() => {
+    const totals = { "Sáng": 0, "Trưa": 0, "Chiều": 0 };
+    filteredMeals.forEach(m => {
+      const hour = new Date(m.time).getHours();
+      if (!isNaN(hour)) {
+        const session = getSessionFromHour(hour);
+        totals[session as keyof typeof totals] += parseCalories(m.notes);
+      }
+    });
+    return totals;
+  }, [filteredMeals]);
+
+  const totalTodayCalories = sessionTotals["Sáng"] + sessionTotals["Trưa"] + sessionTotals["Chiều"];
 
   // Paginated meals
   const paginatedMeals = useMemo(() => {
@@ -288,10 +315,9 @@ export function NutritionPlan() {
     const groups: Record<string, Record<string, MealEntry[]>> = {};
     paginatedMeals.forEach(meal => {
       const dateKey = meal.time.split("T")[0];
-      const hour = new Date(meal.time).getHours();
-      let session = "Chiều";
-      if (hour >= 5 && hour < 12) session = "Sáng";
-      else if (hour >= 12 && hour < 17) session = "Trưa";
+      const d = new Date(meal.time);
+      if (isNaN(d.getTime())) return;
+      const session = getSessionFromHour(d.getHours());
       if (!groups[dateKey]) groups[dateKey] = {};
       if (!groups[dateKey][session]) groups[dateKey][session] = [];
       groups[dateKey][session].push(meal);
@@ -299,37 +325,7 @@ export function NutritionPlan() {
     return groups;
   }, [paginatedMeals]);
 
-  // Sort dates descending
   const sortedDates = Object.keys(groupedMeals).sort((a, b) => b.localeCompare(a));
-
-  // Calculate calories per session
-  const parseCalories = (notes: string | null): number => {
-    if (!notes) return 0;
-    const match = notes.match(/(\d+)/);
-    return match ? parseInt(match[1]) : 0;
-  };
-
-  const sessionTotals = {
-    "Sáng": filteredMeals
-      .filter(m => {
-        const hour = new Date(m.time).getHours();
-        return hour >= 5 && hour < 12;
-      })
-      .reduce((sum, m) => sum + parseCalories(m.notes), 0),
-    "Trưa": filteredMeals
-      .filter(m => {
-        const hour = new Date(m.time).getHours();
-        return hour >= 12 && hour < 17;
-      })
-      .reduce((sum, m) => sum + parseCalories(m.notes), 0),
-    "Chiều": filteredMeals
-      .filter(m => {
-        const hour = new Date(m.time).getHours();
-        return hour >= 17 && hour < 22;
-      })
-      .reduce((sum, m) => sum + parseCalories(m.notes), 0),
-  };
-  const totalTodayCalories = sessionTotals["Sáng"] + sessionTotals["Trưa"] + sessionTotals["Chiều"];
 
   if (loading) {
     return (
@@ -541,14 +537,12 @@ export function NutritionPlan() {
             <div className="text-center py-10 text-slate-400 font-bold text-sm">Chưa có dữ liệu</div>
           ) : (
             sortedDates.map(dateKey => {
-              const d = new Date(dateKey);
-              const dateLabel = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
               const sessionsInDay = groupedMeals[dateKey];
               return (
                 <div key={dateKey} className="rounded-2xl bg-white border border-natural-border shadow-sm overflow-hidden">
                   <div className="px-4 py-3 bg-natural-light/30 border-b border-natural-border/30 flex items-center gap-2">
                     <Calendar className="w-3.5 h-3.5 text-natural-primary" />
-                    <span className="text-[10px] font-black text-natural-primary-dark uppercase tracking-widest">{dateLabel}</span>
+                    <span className="text-[10px] font-black text-natural-primary-dark uppercase tracking-widest">{formatDateLabel(dateKey)}</span>
                   </div>
                   <div className="divide-y divide-natural-border/10">
                     {SESSION_TYPES.map(session => {
