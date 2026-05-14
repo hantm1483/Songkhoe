@@ -182,7 +182,7 @@ export function ActivitySchedule() {
     }
   };
 
-  const handleQuickAdd = async () => {
+  const handleQuickAdd = async (closeAfter = false) => {
     if (!quickAdd.activity_name) return;
     try {
       const res = await fetch("/api/activity-schedules", {
@@ -198,8 +198,12 @@ export function ActivitySchedule() {
       });
       if (res.ok) {
         await loadSchedule();
-        setShowQuickAdd(false);
         setQuickAdd({ date: new Date().toISOString().split('T')[0], time: '08:00', activity_name: '', duration_minutes: '30', calories_burned: '' });
+        if (closeAfter) {
+          setShowQuickAdd(false);
+        } else {
+          alert("Lưu thành công!");
+        }
       }
     } catch (err) {
       console.error(err);
@@ -285,10 +289,16 @@ export function ActivitySchedule() {
               Hủy
             </button>
             <button
-              onClick={handleQuickAdd}
+              onClick={() => handleQuickAdd(true)}
+              className="px-4 py-2 rounded-xl bg-natural-accent text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-natural-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
+              Lưu & tiếp tục
+            </button>
+            <button
+              onClick={() => handleQuickAdd(false)}
               className="px-6 py-2 rounded-xl bg-natural-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-natural-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
             >
-              Thêm
+              Lưu
             </button>
           </div>
         </div>
