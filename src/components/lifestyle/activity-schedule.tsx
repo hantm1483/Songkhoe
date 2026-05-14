@@ -49,12 +49,14 @@ export function ActivitySchedule() {
 
   // Initialize dates on client-side only to avoid hydration mismatch
   const [clientReady, setClientReady] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     setFormData(prev => ({ ...prev, date: today }));
     setQuickAdd(prev => ({ ...prev, date: today }));
     setClientReady(true);
+    setInitializing(false);
   }, []);
 
   // Date filter state
