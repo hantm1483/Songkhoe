@@ -424,7 +424,7 @@ export function NutritionPlan() {
 
     if (isEditing && edit) {
       return (
-        <div key={meal.id} className="grid grid-cols-[5rem_1fr_5rem] gap-1.5 items-center py-1.5 px-2 border-b border-natural-border/10 last:border-0 bg-natural-light/30">
+        <div key={meal.id} className="grid grid-cols-[5rem_1fr_4rem_auto] gap-1 items-center py-1.5 px-2 border-b border-natural-border/10 last:border-0 bg-natural-light/30">
           <input
             type="time"
             value={meal.time ? meal.time.split("T")[1]?.slice(0, 5) : ""}
@@ -435,7 +435,7 @@ export function NutritionPlan() {
             type="text"
             value={edit.name}
             onChange={(e) => handleEditFieldChange(meal.id, "name", e.target.value)}
-            className="w-full text-[11px] font-bold p-1.5 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary max-w-[120px]"
+            className="w-full text-[11px] font-bold p-1.5 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary"
           />
           <input
             type="number"
@@ -443,26 +443,28 @@ export function NutritionPlan() {
             onChange={(e) => handleEditFieldChange(meal.id, "calories", e.target.value)}
             className="w-full text-[10px] font-bold p-1.5 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary"
           />
-          <button
-            onClick={() => handleSaveEditMeal(meal.id)}
-            className="p-1 rounded text-emerald-500 hover:bg-emerald-50 transition-all"
-          >
-            <Check className="w-3 h-3" />
-          </button>
-          <button
-            onClick={() => handleCancelEditMeal(meal.id)}
-            className="p-1 rounded text-slate-400 hover:bg-slate-100 transition-all"
-          >
-            <X className="w-3 h-3" />
-          </button>
+          <div className="flex gap-0.5">
+            <button
+              onClick={() => handleSaveEditMeal(meal.id)}
+              className="p-1 rounded text-emerald-500 hover:bg-emerald-50 transition-all"
+            >
+              <Check className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => handleCancelEditMeal(meal.id)}
+              className="p-1 rounded text-slate-400 hover:bg-slate-100 transition-all"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       );
     }
 
     return (
-      <div key={meal.id} className="grid grid-cols-[5rem_1fr_5rem] gap-1.5 items-center py-1.5 px-2 border-b border-natural-border/10 last:border-0">
+      <div key={meal.id} className="grid grid-cols-[5rem_1fr_4rem_auto] gap-1 items-center py-1.5 px-2 border-b border-natural-border/10 last:border-0">
         <span className="text-[10px] font-bold text-slate-400">{meal.time ? meal.time.split("T")[1]?.slice(0, 5) : ""}</span>
-        <p className="text-[11px] font-bold text-natural-primary-dark line-clamp-1 max-w-[120px]">{meal.name}</p>
+        <p className="text-[11px] font-bold text-natural-primary-dark line-clamp-1">{meal.name}</p>
         <p className="text-[10px] font-bold text-slate-400 text-right">{parseCalories(meal.notes)}</p>
         <div className="flex gap-0.5">
           <button
