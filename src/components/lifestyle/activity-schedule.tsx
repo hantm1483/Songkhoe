@@ -37,6 +37,16 @@ export function ActivitySchedule() {
     calories_burned: ''
   });
 
+  // Quick add state
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickAdd, setQuickAdd] = useState({
+    date: new Date().toISOString().split('T')[0],
+    time: '08:00',
+    activity_name: '',
+    duration_minutes: '30',
+    calories_burned: ''
+  });
+
   useEffect(() => {
     loadSchedule();
   }, []);
@@ -172,6 +182,35 @@ export function ActivitySchedule() {
     }
   };
 
+  const handleQuickAdd = async () => {
+    if (!quickAdd.activity_name) return;
+    try {
+      const res = await fetch("/api/activity-schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          activity_name: quickAdd.activity_name,
+          scheduled_date: quickAdd.date,
+          scheduled_time: quickAdd.time,
+          duration_minutes: parseInt(quickAdd.duration_minutes) || 30,
+          calories_burned: quickAdd.calories_burned ? parseInt(quickAdd.calories_burned) : null,
+        }),
+      });
+      if (res.ok) {
+        await loadSchedule();
+        setShowQuickAdd(false);
+        setQuickAdd({ date: new Date().toISOString().split('T')[0], time: '08:00', activity_name: '', duration_minutes: '30', calories_burned: '' });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const resetQuickAdd = () => {
+    setShowQuickAdd(false);
+    setQuickAdd({ date: new Date().toISOString().split('T')[0], time: '08:00', activity_name: '', duration_minutes: '30', calories_burned: '' });
+  };
+
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -190,15 +229,70 @@ export function ActivitySchedule() {
             Đã hoàn thành {todayTasks.filter(t => t.completed).length}/{todayTasks.length} mục tiêu
           </p>
         </div>
-        {!isAdding && (
+        {!showQuickAdd && !isAdding && (
           <button
-            onClick={() => setIsAdding(true)}
+            onClick={() => setShowQuickAdd(true)}
             className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-natural-primary text-white text-xs font-black uppercase tracking-widest hover:bg-natural-primary/90 transition-all shadow-lg shadow-natural-primary/20"
           >
-            <Plus className="h-4 w-4" /> Tạo lịch mới
+            <Plus className="h-4 w-4" /> Thêm lịch trình
           </button>
         )}
       </div>
+
+      {showQuickAdd && (
+        <div className="p-4 bg-natural-light/30 rounded-[24px] border-2 border-dashed border-natural-primary space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <input
+              type="date"
+              value={quickAdd.date}
+              onChange={(e) => setQuickAdd({ ...quickAdd, date: e.target.value })}
+              className="text-xs font-bold px-3 py-2.5 rounded-xl bg-white border border-natural-border outline-none focus:border-natural-primary"
+            />
+            <input
+              type="time"
+              value={quickAdd.time}
+              onChange={(e) => setQuickAdd({ ...quickAdd, time: e.target.value })}
+              className="text-xs font-bold px-3 py-2.5 rounded-xl bg-white border border-natural-border outline-none focus:border-natural-primary"
+            />
+            <input
+              type="text"
+              value={quickAdd.activity_name}
+              onChange={(e) => setQuickAdd({ ...quickAdd, activity_name: e.target.value })}
+              className="text-xs font-bold px-3 py-2.5 rounded-xl bg-white border border-natural-border outline-none focus:border-natural-primary"
+              placeholder="Tên hoạt động..."
+              autoFocus
+            />
+            <input
+              type="number"
+              value={quickAdd.duration_minutes}
+              onChange={(e) => setQuickAdd({ ...quickAdd, duration_minutes: e.target.value })}
+              className="text-xs font-bold px-3 py-2.5 rounded-xl bg-white border border-natural-border outline-none focus:border-natural-primary"
+              placeholder="Phút"
+            />
+            <input
+              type="number"
+              value={quickAdd.calories_burned}
+              onChange={(e) => setQuickAdd({ ...quickAdd, calories_burned: e.target.value })}
+              className="text-xs font-bold px-3 py-2.5 rounded-xl bg-white border border-natural-border outline-none focus:border-natural-primary"
+              placeholder="Calo"
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={resetQuickAdd}
+              className="px-4 py-2 rounded-xl text-xs font-black text-slate-400 uppercase hover:bg-slate-100 transition-all"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleQuickAdd}
+              className="px-6 py-2 rounded-xl bg-natural-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-natural-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
+              Thêm
+            </button>
+          </div>
+        </div>
+      )}
 
       <AnimatePresence>
         {isAdding && (

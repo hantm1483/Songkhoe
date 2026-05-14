@@ -76,7 +76,7 @@ export function NutritionPlan() {
 
   // Form state
   const [isAdding, setIsAdding] = useState(false);
-  const [sessionMeta, setSessionMeta] = useState({ date: "", type: "Sáng" });
+  const [sessionMeta, setSessionMeta] = useState({ date: new Date().toISOString().split('T')[0], type: "Sáng" });
   const [sessionDishes, setSessionDishes] = useState([{ dish: "", calories: "" }]);
   const [saving, setSaving] = useState(false);
 
@@ -544,16 +544,16 @@ export function NutritionPlan() {
             className="bg-white rounded-[32px] p-6 border-2 border-natural-primary shadow-xl space-y-6"
           >
             <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
-              <div className="w-full sm:w-1/3">
+              <div className="w-full sm:w-40">
                 <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block ml-1">Ngày</label>
                 <input
                   type="date"
                   value={sessionMeta.date}
                   onChange={(e) => setSessionMeta({ ...sessionMeta, date: e.target.value })}
-                  className="w-full text-xs font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary"
+                  className="w-full text-xs font-bold p-3 rounded-xl bg-natural-light border border-natural-border outline-none focus:border-natural-primary cursor-pointer"
                 />
               </div>
-              <div className="w-full sm:w-1/3">
+              <div className="w-full sm:w-32">
                 <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block ml-1">Buổi</label>
                 <select
                   value={sessionMeta.type}
