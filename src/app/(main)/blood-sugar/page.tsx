@@ -10,6 +10,7 @@ import { GlucoseInput } from "@/components/blood-sugar/add-reading-modal";
 
 export default function BloodSugarPage() {
   const [showInput, setShowInput] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   return (
     <Page>
@@ -32,7 +33,7 @@ export default function BloodSugarPage() {
         <div className="space-y-8">
           {/* Row 1: Chart */}
           <section className="rounded-[40px] bg-white p-8 sm:p-10 shadow-sm border border-natural-border">
-            <GlucoseChart />
+            <GlucoseChart refreshTrigger={refreshTrigger} />
           </section>
 
           <div className="space-y-8">
@@ -48,7 +49,7 @@ export default function BloodSugarPage() {
                 <button className="text-xs font-black text-natural-primary uppercase tracking-widest hover:underline">Phân tích sâu</button>
               </div>
               <div className="flex-1 overflow-x-auto scrollbar-thin scrollbar-thumb-natural-border">
-                <GlucoseLog />
+                <GlucoseLog refreshTrigger={refreshTrigger} />
               </div>
               <button className="mt-8 w-full py-5 text-sm font-black text-natural-primary uppercase tracking-[0.2em] hover:bg-natural-light rounded-[24px] transition-all border border-dashed border-natural-border/60">
                 Tất cả lịch sử đo
@@ -94,7 +95,7 @@ export default function BloodSugarPage() {
                     <h3 className="text-2xl font-black text-natural-primary-dark uppercase tracking-tight">Ghi nhận chỉ số</h3>
                     <p className="text-sm text-slate-500 font-medium mt-1">Vui lòng nhập chính xác kết quả từ máy đo của bạn.</p>
                   </div>
-                  <GlucoseInput onClose={() => setShowInput(false)} />
+                  <GlucoseInput onClose={() => setShowInput(false)} onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
                 </div>
               </motion.div>
             </>

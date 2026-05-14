@@ -5,6 +5,7 @@ import { Droplets } from "lucide-react";
 
 interface GlucoseInputProps {
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 const TIMING_MAP: Record<string, string> = {
@@ -14,12 +15,13 @@ const TIMING_MAP: Record<string, string> = {
   "Trước khi ngủ": "bedtime",
 };
 
-export function GlucoseInput({ onClose }: GlucoseInputProps) {
+export function GlucoseInput({ onClose, onSuccess }: GlucoseInputProps) {
   const [timing, setTiming] = useState("Lúc đói (Sáng sớm)");
   const [value, setValue] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const handleSave = async () => {
     const numValue = parseFloat(value);
@@ -39,6 +41,7 @@ export function GlucoseInput({ onClose }: GlucoseInputProps) {
           value: numValue,
           timing: TIMING_MAP[timing],
           notes: notes || undefined,
+          measuredAt: new Date().toISOString(),
         }),
       });
 
@@ -55,7 +58,11 @@ export function GlucoseInput({ onClose }: GlucoseInputProps) {
         return;
       }
 
-      onClose();
+      setSuccessMessage("Lưu thành công!");
+      setTimeout(() => {
+        onSuccess?.();
+        onClose();
+      }, 1500);
     } catch (err) {
       setError("Lưu thất bại. Vui lòng thử lại.");
     } finally {
@@ -104,6 +111,10 @@ export function GlucoseInput({ onClose }: GlucoseInputProps) {
           />
         </div>
       </div>
+
+      {successMessage && (
+        <p className="text-sm font-bold text-emerald-500 text-center animate-pulse">{successMessage}</p>
+      )}
 
       {error && (
         <p className="text-sm font-bold text-red-500 text-center">{error}</p>
