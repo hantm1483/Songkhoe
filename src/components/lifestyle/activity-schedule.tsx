@@ -107,6 +107,12 @@ export function ActivitySchedule() {
     });
   }, [schedule, selectedDate]);
 
+  // Date formatting function - must be defined before useMemo that uses it
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+  };
+
   const toggleTask = async (id: string, currentCompleted: boolean) => {
     const newCompleted = !currentCompleted;
     try {
@@ -259,11 +265,6 @@ export function ActivitySchedule() {
   const resetQuickAdd = () => {
     setShowQuickAdd(false);
     setQuickAdd({ date: new Date().toISOString().split('T')[0], time: '08:00', activity_name: '', duration_minutes: '30', calories_burned: '' });
-  };
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   };
 
   const today = clientReady ? new Date().toISOString().split('T')[0] : '';
