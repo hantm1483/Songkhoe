@@ -107,6 +107,11 @@ export function ActivitySchedule() {
   };
 
   const handleDelete = async (id: string) => {
+    const item = schedule.find(s => s.id === id);
+    if (item?.completed) {
+      alert("Vui lòng bỏ tick trước khi xóa lịch trình này.");
+      return;
+    }
     if (!confirm("Bạn có chắc muốn xóa lịch trình này?")) return;
     try {
       const res = await fetch(`/api/activity-schedules/${id}`, { method: "DELETE" });
@@ -119,6 +124,10 @@ export function ActivitySchedule() {
   };
 
   const startEditing = (item: ScheduleItem) => {
+    if (item.completed) {
+      alert("Vui lòng bỏ tick trước khi sửa lịch trình này.");
+      return;
+    }
     setEditingId(item.id);
     setEditingData({
       activity_name: item.activity_name,
@@ -391,13 +400,25 @@ export function ActivitySchedule() {
                     <div className="flex items-center gap-2 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => startEditing(item)}
-                        className="p-2.5 rounded-xl bg-white border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary transition-all shadow-sm"
+                        disabled={item.completed}
+                        className={clsx(
+                          "p-2.5 rounded-xl border transition-all shadow-sm",
+                          item.completed
+                            ? "bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed"
+                            : "bg-white border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary"
+                        )}
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(item.id)}
-                        className="p-2.5 rounded-xl bg-white border border-natural-border text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm"
+                        disabled={item.completed}
+                        className={clsx(
+                          "p-2.5 rounded-xl border transition-all shadow-sm",
+                          item.completed
+                            ? "bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed"
+                            : "bg-white border-natural-border text-slate-400 hover:text-rose-500 hover:border-rose-200"
+                        )}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
