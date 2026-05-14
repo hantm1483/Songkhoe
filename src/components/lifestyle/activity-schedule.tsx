@@ -49,6 +49,7 @@ export function ActivitySchedule() {
 
   // Date filter state
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [successMsg, setSuccessMsg] = useState<string>('');
 
   // Available dates from data
   const availableDates = useMemo(() => {
@@ -207,6 +208,8 @@ export function ActivitySchedule() {
             calories_burned: editingData.calories_burned,
           } : item
         ));
+        setSuccessMsg("Lưu thành công!");
+        setTimeout(() => setSuccessMsg(''), 2000);
         cancelEditing();
       }
     } catch (err) {
@@ -230,7 +233,8 @@ export function ActivitySchedule() {
       });
       if (res.ok) {
         await loadSchedule();
-        alert("Lưu thành công!");
+        setSuccessMsg("Lưu thành công!");
+        setTimeout(() => setSuccessMsg(''), 2000);
         if (keepOpen) {
           setQuickAdd({ date: new Date().toISOString().split('T')[0], time: '08:00', activity_name: '', duration_minutes: '30', calories_burned: '' });
         } else {
@@ -260,6 +264,11 @@ export function ActivitySchedule() {
 
   return (
     <div className="space-y-8">
+      {successMsg && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-2xl bg-emerald-500 text-white text-sm font-bold shadow-lg animate-pulse">
+          {successMsg}
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-xl font-black text-natural-primary-dark uppercase tracking-tight">Lịch trình ngày {selectedDateStr}</h3>
