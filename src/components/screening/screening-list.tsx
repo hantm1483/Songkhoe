@@ -117,6 +117,8 @@ export function ScreeningLog() {
   }, []);
 
   const handleAddRow = () => {
+    setEditingId(null);
+    setEditData({});
     const newId = `temp-${Date.now()}`;
     const newRow: LabResult = {
       id: newId,
@@ -129,7 +131,7 @@ export function ScreeningLog() {
       created_at: "",
       updated_at: "",
     };
-    setLogs([newRow as LabResult, ...logs]);
+    setLogs([newRow, ...logs]);
     setEditingId(newId);
     setEditData({ ...newRow, customContent: "", location: "" });
   };
@@ -158,7 +160,10 @@ export function ScreeningLog() {
       return;
     }
 
+    // Preserve existing completed status
+    const existingNotes = editData.notes ? JSON.parse(editData.notes) : {};
     const notesObj: Record<string, string> = {};
+    if (existingNotes.completed) notesObj.completed = existingNotes.completed;
     if (editData.location) notesObj.location = editData.location;
     if (rawType === "custom" && editData.customContent) notesObj.customContent = editData.customContent;
     const notes = Object.keys(notesObj).length > 0 ? JSON.stringify(notesObj) : null;
@@ -507,7 +512,7 @@ export function ScreeningLog() {
                     <>
                       <td className="py-6 pl-4">
                         <button
-                          onClick={() => toggleCompleted(log)}
+                          onClick={(e) => { e.stopPropagation(); toggleCompleted(log); }}
                           className={clsx(
                             "p-2 rounded-xl border transition-all",
                             completed
