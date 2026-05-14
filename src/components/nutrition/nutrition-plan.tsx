@@ -424,24 +424,24 @@ export function NutritionPlan() {
 
     if (isEditing && edit) {
       return (
-        <div key={meal.id} className="flex items-center gap-1.5 py-1.5 px-2 border-b border-natural-border/10 last:border-0 bg-natural-light/30">
+        <div key={meal.id} className="grid grid-cols-[5rem_1fr_5rem] gap-1.5 items-center py-1.5 px-2 border-b border-natural-border/10 last:border-0 bg-natural-light/30">
           <input
             type="time"
             value={meal.time ? meal.time.split("T")[1]?.slice(0, 5) : ""}
             disabled
-            className="w-16 text-[10px] font-bold p-1.5 rounded-lg bg-white/50 border border-natural-border outline-none text-slate-400"
+            className="w-full text-[10px] font-bold p-1.5 rounded-lg bg-white/50 border border-natural-border outline-none text-slate-400"
           />
           <input
             type="text"
             value={edit.name}
             onChange={(e) => handleEditFieldChange(meal.id, "name", e.target.value)}
-            className="flex-1 text-[11px] font-bold p-1.5 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary"
+            className="w-full text-[11px] font-bold p-1.5 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary max-w-[120px]"
           />
           <input
             type="number"
             value={edit.calories}
             onChange={(e) => handleEditFieldChange(meal.id, "calories", e.target.value)}
-            className="w-16 text-[10px] font-bold p-1.5 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary"
+            className="w-full text-[10px] font-bold p-1.5 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary"
           />
           <button
             onClick={() => handleSaveEditMeal(meal.id)}
@@ -460,10 +460,10 @@ export function NutritionPlan() {
     }
 
     return (
-      <div key={meal.id} className="flex items-center gap-1.5 py-1.5 px-2 border-b border-natural-border/10 last:border-0">
-        <span className="w-16 text-[10px] font-bold text-slate-400">{meal.time ? meal.time.split("T")[1]?.slice(0, 5) : ""}</span>
-        <p className="text-[11px] font-bold text-natural-primary-dark line-clamp-1 flex-1">{meal.name}</p>
-        <p className="w-16 text-[10px] font-bold text-slate-400 text-right">{parseCalories(meal.notes)}</p>
+      <div key={meal.id} className="grid grid-cols-[5rem_1fr_5rem] gap-1.5 items-center py-1.5 px-2 border-b border-natural-border/10 last:border-0">
+        <span className="text-[10px] font-bold text-slate-400">{meal.time ? meal.time.split("T")[1]?.slice(0, 5) : ""}</span>
+        <p className="text-[11px] font-bold text-natural-primary-dark line-clamp-1 max-w-[120px]">{meal.name}</p>
+        <p className="text-[10px] font-bold text-slate-400 text-right">{parseCalories(meal.notes)}</p>
         <div className="flex gap-0.5">
           <button
             onClick={() => handleStartEditMeal(meal)}
