@@ -49,14 +49,27 @@ export function ActivitySchedule() {
 
   // Initialize dates on client-side only to avoid hydration mismatch
   const [clientReady, setClientReady] = useState(false);
-  const [initializing, setInitializing] = useState(true);
+
+  const loadSchedule = async () => {
+    try {
+      const res = await fetch("/api/activity-schedules?limit=50");
+      if (res.ok) {
+        const data = await res.json();
+        setSchedule(data.data?.schedules || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     setFormData(prev => ({ ...prev, date: today }));
     setQuickAdd(prev => ({ ...prev, date: today }));
     setClientReady(true);
-    setInitializing(false);
+    loadSchedule();
   }, []);
 
   // Date filter state
@@ -93,24 +106,6 @@ export function ActivitySchedule() {
       return timeB.localeCompare(timeA);
     });
   }, [schedule, selectedDate]);
-
-  useEffect(() => {
-    loadSchedule();
-  }, []);
-
-  async function loadSchedule() {
-    try {
-      const res = await fetch("/api/activity-schedules?limit=50");
-      if (res.ok) {
-        const data = await res.json();
-        setSchedule(data.data?.schedules || []);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const toggleTask = async (id: string, currentCompleted: boolean) => {
     const newCompleted = !currentCompleted;
