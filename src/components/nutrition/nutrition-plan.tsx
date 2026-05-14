@@ -55,13 +55,21 @@ function parseCalories(notes: string | null): number {
 export function NutritionPlan() {
   const [mealHistory, setMealHistory] = useState<MealEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Header state
   const [viewMode, setViewMode] = useState<ViewMode>("day");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedWeek, setSelectedWeek] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
-  const [currentPage, setCurrentPage] = useState(1);
 
-  // Form state - use stable initial values
+  // History section state
+  const [historyViewMode, setHistoryViewMode] = useState<ViewMode>("day");
+  const [historySelectedDate, setHistorySelectedDate] = useState<string>("");
+  const [historySelectedWeek, setHistorySelectedWeek] = useState<string>("");
+  const [historySelectedMonth, setHistorySelectedMonth] = useState<string>("");
+  const [historyPage, setHistoryPage] = useState(1);
+
+  // Form state
   const [isAdding, setIsAdding] = useState(false);
   const [sessionMeta, setSessionMeta] = useState({ date: "", type: "Sáng" });
   const [sessionDishes, setSessionDishes] = useState([{ dish: "", calories: "" }]);
@@ -88,13 +96,12 @@ export function NutritionPlan() {
     loadMeals();
   }, [loadMeals]);
 
-  // Derive available options from mealHistory - stable across renders
+  // Derive available options from mealHistory
   const { availableDates, availableWeeks, availableMonths } = useMemo(() => {
     if (mealHistory.length === 0) {
       return { availableDates: [], availableWeeks: [], availableMonths: [] };
     }
 
-    // Date options
     const dateMap = new Map<string, string>();
     mealHistory.forEach(meal => {
       const dateKey = meal.time.split("T")[0];
@@ -106,7 +113,6 @@ export function NutritionPlan() {
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([value, label]) => ({ value, label }));
 
-    // Week options
     const weekMap = new Map<string, WeekOption>();
     mealHistory.forEach(meal => {
       const d = new Date(meal.time);
@@ -131,7 +137,6 @@ export function NutritionPlan() {
     });
     const weeks = Array.from(weekMap.values()).sort((a, b) => b.value.localeCompare(a.value));
 
-    // Month options
     const monthMap = new Map<string, MonthOption>();
     mealHistory.forEach(meal => {
       const d = new Date(meal.time);
@@ -149,7 +154,7 @@ export function NutritionPlan() {
     return { availableDates: dates, availableWeeks: weeks, availableMonths: months };
   }, [mealHistory]);
 
-  // Set default selections when options become available
+  // Set header defaults
   useEffect(() => {
     if (!selectedDate && availableDates.length > 0) {
       const today = new Date().toISOString().split("T")[0];
@@ -163,6 +168,21 @@ export function NutritionPlan() {
       setSelectedMonth(availableMonths[0].value);
     }
   }, [availableDates, availableWeeks, availableMonths, selectedDate, selectedWeek, selectedMonth]);
+
+  // Set history defaults
+  useEffect(() => {
+    if (!historySelectedDate && availableDates.length > 0) {
+      const today = new Date().toISOString().split("T")[0];
+      const todayExists = availableDates.some(d => d.value === today);
+      setHistorySelectedDate(todayExists ? today : availableDates[0].value);
+    }
+    if (!historySelectedWeek && availableWeeks.length > 0) {
+      setHistorySelectedWeek(availableWeeks[0].value);
+    }
+    if (!historySelectedMonth && availableMonths.length > 0) {
+      setHistorySelectedMonth(availableMonths[0].value);
+    }
+  }, [availableDates, availableWeeks, availableMonths, historySelectedDate, historySelectedWeek, historySelectedMonth]);
 
   const handleAddDishRow = () => {
     setSessionDishes([...sessionDishes, { dish: "", calories: "" }]);
@@ -267,7 +287,7 @@ export function NutritionPlan() {
     }
   };
 
-  // Filter meals by view mode
+  // Filter header meals
   const filteredMeals = useMemo(() => {
     if (mealHistory.length === 0) return [];
     if (viewMode === "day" && selectedDate) {
@@ -288,44 +308,47 @@ export function NutritionPlan() {
     return mealHistory;
   }, [viewMode, selectedDate, selectedWeek, selectedMonth, mealHistory, availableWeeks]);
 
+  // Filter history meals (separate from header)
+  const historyFilteredMeals = useMemo(() => {
+    if (mealHistory.length === 0) return [];
+    if (historyViewMode === "day" && historySelectedDate) {
+      return mealHistory.filter(m => m.time.startsWith(historySelectedDate));
+    }
+    if (historyViewMode === "week" && historySelectedWeek) {
+      const weekOpt = availableWeeks.find(w => w.value === historySelectedWeek);
+      if (weekOpt) {
+        return mealHistory.filter(m => {
+          const d = m.time.split("T")[0];
+          return d >= weekOpt.startDate && d <= weekOpt.endDate;
+        });
+      }
+    }
+    if (historyViewMode === "month" && historySelectedMonth) {
+      return mealHistory.filter(m => m.time.startsWith(historySelectedMonth));
+    }
+    return mealHistory;
+  }, [historyViewMode, historySelectedDate, historySelectedWeek, historySelectedMonth, mealHistory, availableWeeks]);
+
   const sessionTotals = useMemo(() => {
     const totals = { "Sáng": 0, "Trưa": 0, "Chiều": 0 };
     filteredMeals.forEach(m => {
-      const hour = new Date(m.time).getHours();
-      if (!isNaN(hour)) {
-        const session = getSessionFromHour(hour);
-        totals[session as keyof typeof totals] += parseCalories(m.notes);
-      }
+      const d = new Date(m.time);
+      if (isNaN(d.getTime())) return;
+      const session = getSessionFromHour(d.getHours());
+      totals[session as keyof typeof totals] += parseCalories(m.notes);
     });
     return totals;
   }, [filteredMeals]);
 
   const totalTodayCalories = sessionTotals["Sáng"] + sessionTotals["Trưa"] + sessionTotals["Chiều"];
 
-  // Paginated meals
-  const paginatedMeals = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredMeals.slice(start, start + PAGE_SIZE);
-  }, [filteredMeals, currentPage]);
+  // Paginated history
+  const historyPaginatedMeals = useMemo(() => {
+    const start = (historyPage - 1) * PAGE_SIZE;
+    return historyFilteredMeals.slice(start, start + PAGE_SIZE);
+  }, [historyFilteredMeals, historyPage]);
 
-  const totalPages = Math.ceil(filteredMeals.length / PAGE_SIZE);
-
-  // Group paginated meals by date then session
-  const groupedMeals = useMemo(() => {
-    const groups: Record<string, Record<string, MealEntry[]>> = {};
-    paginatedMeals.forEach(meal => {
-      const dateKey = meal.time.split("T")[0];
-      const d = new Date(meal.time);
-      if (isNaN(d.getTime())) return;
-      const session = getSessionFromHour(d.getHours());
-      if (!groups[dateKey]) groups[dateKey] = {};
-      if (!groups[dateKey][session]) groups[dateKey][session] = [];
-      groups[dateKey][session].push(meal);
-    });
-    return groups;
-  }, [paginatedMeals]);
-
-  const sortedDates = Object.keys(groupedMeals).sort((a, b) => b.localeCompare(a));
+  const historyTotalPages = Math.ceil(historyFilteredMeals.length / PAGE_SIZE);
 
   if (loading) {
     return (
@@ -337,19 +360,18 @@ export function NutritionPlan() {
 
   return (
     <div className="space-y-10">
-      {/* Header with view mode selector */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
         <div>
           <h3 className="text-xl font-black text-natural-primary-dark uppercase tracking-tight">Nhật ký calo</h3>
           <p className="text-sm text-slate-500 font-medium mt-1">Theo dõi năng lượng bạn đã nạp vào cơ thể.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {/* View mode toggle */}
           <div className="flex gap-1 p-1 bg-natural-light rounded-full">
             {(["day", "week", "month"] as ViewMode[]).map(mode => (
               <button
                 key={mode}
-                onClick={() => { setViewMode(mode); setCurrentPage(1); }}
+                onClick={() => { setViewMode(mode); }}
                 className={clsx(
                   "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
                   viewMode === mode
@@ -362,13 +384,12 @@ export function NutritionPlan() {
             ))}
           </div>
 
-          {/* Date/Week/Month selector */}
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-slate-400" />
             {viewMode === "day" && (
               <select
                 value={selectedDate}
-                onChange={(e) => { setSelectedDate(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => { setSelectedDate(e.target.value); }}
                 className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
               >
                 {availableDates.map(opt => (
@@ -379,7 +400,7 @@ export function NutritionPlan() {
             {viewMode === "week" && (
               <select
                 value={selectedWeek}
-                onChange={(e) => { setSelectedWeek(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => { setSelectedWeek(e.target.value); }}
                 className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
               >
                 {availableWeeks.map(opt => (
@@ -390,7 +411,7 @@ export function NutritionPlan() {
             {viewMode === "month" && (
               <select
                 value={selectedMonth}
-                onChange={(e) => { setSelectedMonth(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => { setSelectedMonth(e.target.value); }}
                 className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
               >
                 {availableMonths.map(opt => (
@@ -531,90 +552,146 @@ export function NutritionPlan() {
           </motion.div>
         )}
 
-        {/* Meal history by date → session → meal */}
-        <div className="space-y-3">
-          {sortedDates.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 font-bold text-sm">Chưa có dữ liệu</div>
-          ) : (
-            sortedDates.map(dateKey => {
-              const sessionsInDay = groupedMeals[dateKey];
+        {/* History controls + sessions side by side */}
+        <div className="rounded-[32px] bg-white border border-natural-border shadow-sm overflow-hidden">
+          {/* Header: view mode + selector + pagination */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-natural-border/30">
+            {/* View mode toggle */}
+            <div className="flex gap-1 p-1 bg-natural-light rounded-full">
+              {(["day", "week", "month"] as ViewMode[]).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => { setHistoryViewMode(mode); setHistoryPage(1); }}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
+                    historyViewMode === mode
+                      ? "bg-natural-primary text-white shadow-md"
+                      : "text-slate-500 hover:text-natural-primary"
+                  )}
+                >
+                  {mode === "day" ? "Ngày" : mode === "week" ? "Tuần" : "Tháng"}
+                </button>
+              ))}
+            </div>
+
+            {/* Selector */}
+            <div className="flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              {historyViewMode === "day" && (
+                <select
+                  value={historySelectedDate}
+                  onChange={(e) => { setHistorySelectedDate(e.target.value); setHistoryPage(1); }}
+                  className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
+                >
+                  {availableDates.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              )}
+              {historyViewMode === "week" && (
+                <select
+                  value={historySelectedWeek}
+                  onChange={(e) => { setHistorySelectedWeek(e.target.value); setHistoryPage(1); }}
+                  className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
+                >
+                  {availableWeeks.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              )}
+              {historyViewMode === "month" && (
+                <select
+                  value={historySelectedMonth}
+                  onChange={(e) => { setHistorySelectedMonth(e.target.value); setHistoryPage(1); }}
+                  className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary outline-none cursor-pointer"
+                >
+                  {availableMonths.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Pagination */}
+            {historyTotalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                  disabled={historyPage === 1}
+                  className="p-1.5 rounded-lg border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-xs font-bold text-slate-500 min-w-[48px] text-center">
+                  {historyPage} / {historyTotalPages}
+                </span>
+                <button
+                  onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))}
+                  disabled={historyPage === historyTotalPages}
+                  className="p-1.5 rounded-lg border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Sessions: Sáng | Trưa | Chiều side by side */}
+          <div className="grid grid-cols-3 divide-x divide-natural-border/30">
+            {SESSION_TYPES.map(session => {
+              const sessionMeals = historyPaginatedMeals.filter(m => {
+                const d = new Date(m.time);
+                if (isNaN(d.getTime())) return false;
+                return getSessionFromHour(d.getHours()) === session;
+              });
+              const sessionCal = sessionMeals.reduce((sum, m) => sum + parseCalories(m.notes), 0);
+
               return (
-                <div key={dateKey} className="rounded-2xl bg-white border border-natural-border shadow-sm overflow-hidden">
-                  <div className="px-4 py-3 bg-natural-light/30 border-b border-natural-border/30 flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-natural-primary" />
-                    <span className="text-[10px] font-black text-natural-primary-dark uppercase tracking-widest">{formatDateLabel(dateKey)}</span>
+                <div key={session} className={clsx(
+                  "p-4 transition-all",
+                  sessionMeals.length > 0 ? "bg-white" : "bg-white/50"
+                )}>
+                  <div className="flex justify-between items-start mb-3">
+                    <p className={clsx(
+                      "text-[9px] font-black uppercase tracking-widest",
+                      session === "Sáng" ? "text-amber-500" : session === "Trưa" ? "text-emerald-500" : "text-rose-500"
+                    )}>{session}</p>
+                    {sessionMeals.length > 0 && (
+                      <span className="text-[10px] font-black text-natural-primary">{sessionCal} kcal</span>
+                    )}
                   </div>
-                  <div className="divide-y divide-natural-border/10">
-                    {SESSION_TYPES.map(session => {
-                      const meals = sessionsInDay[session] || [];
-                      const sessionCal = meals.reduce((sum, m) => sum + parseCalories(m.notes), 0);
-                      return (
-                        <div key={session}>
-                          <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50/50">
-                            <span className={clsx(
-                              "text-[9px] font-black uppercase tracking-widest",
-                              session === "Sáng" ? "text-amber-500" : session === "Trưa" ? "text-emerald-500" : "text-rose-500"
-                            )}>{session}</span>
-                            {meals.length > 0 && (
-                              <span className="text-[9px] font-bold text-slate-400 ml-auto">{sessionCal} kcal</span>
-                            )}
+
+                  {sessionMeals.length > 0 ? (
+                    <div className="space-y-1">
+                      {sessionMeals.map(meal => (
+                        <div key={meal.id} className="flex items-center gap-1.5 py-1 border-b border-natural-border/10 last:border-0">
+                          <p className="text-[11px] font-bold text-natural-primary-dark line-clamp-1 flex-1">{meal.name}</p>
+                          <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{parseCalories(meal.notes)}</p>
+                          <div className="flex gap-0.5">
+                            <button
+                              onClick={() => handleStartEditMeal(meal)}
+                              className="p-1 rounded text-slate-400 hover:text-natural-primary hover:bg-natural-light transition-all"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMeal(meal.id)}
+                              className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
                           </div>
-                          {meals.length > 0 ? (
-                            meals.map(meal => (
-                              <div key={meal.id} className="flex items-center gap-2 px-4 py-1.5 hover:bg-natural-light/20 transition-colors">
-                                <p className="text-[11px] font-bold text-natural-primary-dark line-clamp-1 flex-1">{meal.name}</p>
-                                <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{parseCalories(meal.notes)}</p>
-                                <div className="flex gap-0.5">
-                                  <button
-                                    onClick={() => handleStartEditMeal(meal)}
-                                    className="p-1 rounded text-slate-400 hover:text-natural-primary hover:bg-natural-light transition-all"
-                                  >
-                                    <Edit2 className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteMeal(meal.id)}
-                                    className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="px-4 py-1 text-[10px] text-slate-300 font-medium italic">Chưa ghi nhận</p>
-                          )}
                         </div>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-slate-300 font-medium italic">Chưa ghi nhận</p>
+                  )}
                 </div>
               );
-            })
-          )}
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-4 pt-2">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="p-2 rounded-xl border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-bold text-slate-500">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="p-2 rounded-xl border border-natural-border text-slate-400 hover:text-natural-primary hover:border-natural-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            })}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Edit Modal */}
