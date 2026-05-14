@@ -323,9 +323,9 @@ export function NutritionPlan() {
     return mealHistory;
   }, [viewMode, selectedDate, selectedWeek, selectedMonth, mealHistory, availableWeeks]);
 
-  // Group meals by date for week view
+  // Group meals by date for week/month view
   const mealsByDate = useMemo(() => {
-    if (viewMode !== "week") return null;
+    if (viewMode === "day") return null;
     const groups: Record<string, MealEntry[]> = {};
     filteredMeals.forEach(m => {
       const d = parseDate(m.time);
@@ -339,8 +339,12 @@ export function NutritionPlan() {
 
   const sortedDates = mealsByDate ? Object.keys(mealsByDate).sort((a, b) => b.localeCompare(a)) : [];
   const totalDatePages = sortedDates.length;
-  const currentDateKey = sortedDates[currentPage - 1] || "";
-  const currentDateMeals = currentDateKey ? (mealsByDate?.[currentDateKey] || []) : [];
+  const currentDateKey = viewMode === "day"
+    ? selectedDate
+    : (sortedDates[currentPage - 1] || "");
+  const currentDateMeals = currentDateKey
+    ? (mealsByDate?.[currentDateKey] || (viewMode === "day" ? filteredMeals : []))
+    : [];
 
   const sessionTotals = useMemo(() => {
     const totals = { "Sáng": 0, "Trưa": 0, "Chiều": 0 };
@@ -355,15 +359,9 @@ export function NutritionPlan() {
 
   const totalCalories = sessionTotals["Sáng"] + sessionTotals["Trưa"] + sessionTotals["Chiều"];
 
-  // For day view: 5 items per page
-  const PAGE_SIZE = 5;
-  const paginatedMeals = useMemo(() => {
-    if (viewMode === "week") return currentDateMeals;
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredMeals.slice(start, start + PAGE_SIZE);
-  }, [filteredMeals, currentPage, viewMode, currentDateMeals]);
-
-  const totalPages = viewMode === "week" ? totalDatePages : Math.ceil(filteredMeals.length / PAGE_SIZE);
+  // For day view: show all meals (no pagination), for week/month: paginate by date
+  const totalPages = viewMode === "day" ? 1 : totalDatePages;
+  const displayMeals = viewMode === "day" ? filteredMeals : currentDateMeals;
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -679,7 +677,7 @@ export function NutritionPlan() {
             /* Day/Month view: 3-column sessions */
             <div className="grid grid-cols-3 divide-x divide-natural-border/30">
               {SESSION_TYPES.map(session => {
-                const sessionMeals = paginatedMeals.filter(m => {
+                const sessionMeals = displayMeals.filter(m => {
                   const d = parseDate(m.time);
                   if (!d) return false;
                   return getSessionFromHour(d.getHours()) === session;
