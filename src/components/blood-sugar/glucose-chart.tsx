@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Calendar } from "lucide-react";
 import type { GlucoseLog } from "@/lib/supabase/database.types";
@@ -48,6 +48,7 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
   const [selectedMonth, setSelectedMonth] = useState<string>("");
 
   const [allLogs, setAllLogs] = useState<GlucoseLog[]>([]);
+  const [optionsBuilt, setOptionsBuilt] = useState(false);
 
   // Load all data once for building filter options
   useEffect(() => {
@@ -65,9 +66,9 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
     loadAllData();
   }, []);
 
-  // Build filter options from data - using distinct dates
+  // Build filter options from data
   useEffect(() => {
-    if (allLogs.length === 0) return;
+    if (allLogs.length === 0 || optionsBuilt) return;
 
     // Build date options (unique dates) - DISTINCT
     const dateSet = new Set<string>();
@@ -81,13 +82,12 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
       dateMap.set(dateKey, label);
     });
 
-    const distinctDates = Array.from(dateSet);
-    distinctDates.sort((a, b) => b.localeCompare(a)); // descending
+    const distinctDates = Array.from(dateSet).sort((a, b) => b.localeCompare(a));
 
     setAvailableDates(
       distinctDates.map(value => ({ value, label: dateMap.get(value) || value }))
     );
-    if (availableDates.length > 0 && !selectedDate) {
+    if (distinctDates.length > 0) {
       setSelectedDate(distinctDates[0]);
     }
 
@@ -114,11 +114,10 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
         });
       }
     });
-    setAvailableWeeks(
-      Array.from(weekMap.values()).sort((a, b) => b.value.localeCompare(a.value))
-    );
-    if (availableWeeks.length > 0 && !selectedWeek) {
-      setSelectedWeek(availableWeeks[0].value);
+    const sortedWeeks = Array.from(weekMap.values()).sort((a, b) => b.value.localeCompare(a.value));
+    setAvailableWeeks(sortedWeeks);
+    if (sortedWeeks.length > 0) {
+      setSelectedWeek(sortedWeeks[0].value);
     }
 
     // Build month options
@@ -133,17 +132,19 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
         });
       }
     });
-    setAvailableMonths(
-      Array.from(monthMap.values()).sort((a, b) => b.value.localeCompare(a.value))
-    );
-    if (availableMonths.length > 0 && !selectedMonth) {
-      setSelectedMonth(availableMonths[0].value);
+    const sortedMonths = Array.from(monthMap.values()).sort((a, b) => b.value.localeCompare(a.value));
+    setAvailableMonths(sortedMonths);
+    if (sortedMonths.length > 0) {
+      setSelectedMonth(sortedMonths[0].value);
     }
-  }, [allLogs]);
+
+    setOptionsBuilt(true);
+  }, [allLogs, optionsBuilt]);
 
   // Load chart data based on selection
   useEffect(() => {
     if (allLogs.length === 0) return;
+    if (!selectedDate && !selectedWeek && !selectedMonth) return;
 
     setLoading(true);
     try {
@@ -166,19 +167,16 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
       const formatted = filteredLogs.map(log => {
         const d = new Date(log.measured_at);
         if (viewMode === "day") {
-          // Show hour:minute for day view
           return {
             date: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
             value: log.value,
           };
         } else if (viewMode === "week") {
-          // Show day + hour for week view
           return {
             date: `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
             value: log.value,
           };
         } else {
-          // Month view - show day
           return {
             date: `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`,
             value: log.value,
@@ -194,17 +192,23 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
     }
   }, [viewMode, selectedDate, selectedWeek, selectedMonth, allLogs, availableWeeks, refreshTrigger]);
 
-  const average = data.length > 0
-    ? (data.reduce((sum, d) => sum + d.value, 0) / data.length).toFixed(1)
-    : "0";
+  const average = useMemo(() => {
+    return data.length > 0
+      ? (data.reduce((sum, d) => sum + d.value, 0) / data.length).toFixed(1)
+      : "0";
+  }, [data]);
 
-  const status = data.length > 0
-    ? (parseFloat(average) <= 7.0 ? "Kiểm soát tốt" : "Cần cải thiện")
-    : "Chưa có dữ liệu";
+  const status = useMemo(() => {
+    return data.length > 0
+      ? (parseFloat(average) <= 7.0 ? "Kiểm soát tốt" : "Cần cải thiện")
+      : "Chưa có dữ liệu";
+  }, [data.length, average]);
 
-  const statusColor = data.length > 0 && parseFloat(average) <= 7.0
-    ? "text-emerald-600 bg-emerald-50 border-emerald-100"
-    : "text-orange-600 bg-orange-50 border-orange-100";
+  const statusColor = useMemo(() => {
+    return data.length > 0 && parseFloat(average) <= 7.0
+      ? "text-emerald-600 bg-emerald-50 border-emerald-100"
+      : "text-orange-600 bg-orange-50 border-orange-100";
+  }, [data.length, average]);
 
   const chartTitle = useMemo(() => {
     if (viewMode === "day" && selectedDate) {
@@ -222,6 +226,13 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
     return "Xu hướng đường huyết";
   }, [viewMode, selectedDate, selectedWeek, selectedMonth, availableWeeks, availableMonths]);
 
+  const xAxisInterval = useMemo(() => {
+    if (data.length <= 7) return 0;
+    if (data.length <= 14) return 1;
+    if (data.length <= 30) return 3;
+    return 7;
+  }, [data.length]);
+
   if (loading) {
     return (
       <div className="space-y-8">
@@ -231,14 +242,6 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
       </div>
     );
   }
-
-  // Calculate interval for XAxis based on data length
-  const xAxisInterval = useMemo(() => {
-    if (data.length <= 7) return 0;
-    if (data.length <= 14) return 1;
-    if (data.length <= 30) return 3;
-    return 7;
-  }, [data.length]);
 
   return (
     <div className="space-y-8">
@@ -251,7 +254,6 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
             </p>
           </div>
 
-          {/* View Mode Toggle */}
           <div className="flex gap-2">
             <button
               onClick={() => setViewMode("day")}
@@ -286,7 +288,6 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
           </div>
         </div>
 
-        {/* Selection Dropdowns */}
         <div className="flex flex-wrap items-center gap-3">
           {viewMode === "day" && (
             <div className="flex items-center gap-2">
@@ -322,7 +323,7 @@ export function GlucoseChart({ refreshTrigger }: GlucoseChartProps) {
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none appearance-none cursor-pointer"
+                className="rounded-lg border border-natural-border bg-natural-light/50 px-3 py-2 text-xs font-bold text-natural-primary-dark focus:border-natural-primary focus:ring-0 outline-none cursor-pointer"
               >
                 {availableMonths.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
