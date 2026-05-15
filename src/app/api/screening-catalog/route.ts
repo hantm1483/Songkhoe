@@ -20,31 +20,39 @@ const DEFAULT_CATALOG: Omit<ScreeningCatalog, "id" | "user_id" | "created_at" | 
  * GET /api/screening-catalog - List user's screening catalog
  */
 export async function GET(request: NextRequest) {
-  const auth = await getAuthContext();
-  if (!auth) {
-    return NextResponse.json(errorResponse("Không thể xác định người dùng", "AUTH_ERROR"), { status: 401 });
+  try {
+    const auth = await getAuthContext();
+    if (!auth) {
+      return NextResponse.json(errorResponse("Không thể xác định người dùng", "AUTH_ERROR"), { status: 401 });
+    }
+
+    // Demo users get default catalog
+    if (auth.isDemo) {
+      return NextResponse.json(successResponse({ catalog: DEFAULT_CATALOG, isDefault: true }));
+    }
+
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("screening_catalog")
+      .select("*")
+      .eq("user_id", auth.userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Screening catalog query error:", error);
+      return NextResponse.json(databaseError(error), { status: 500 });
+    }
+
+    // Use default catalog if user has no custom items
+    if (!data || data.length === 0) {
+      return NextResponse.json(successResponse({ catalog: DEFAULT_CATALOG, isDefault: true }));
+    }
+
+    return NextResponse.json(successResponse({ catalog: data, isDefault: false }));
+  } catch (err) {
+    console.error("Screening catalog GET error:", err);
+    return NextResponse.json(errorResponse("Lỗi server", "SERVER_ERROR"), { status: 500 });
   }
-
-  // Demo users get default catalog
-  if (auth.isDemo) {
-    return NextResponse.json(successResponse({ catalog: DEFAULT_CATALOG, isDefault: true }));
-  }
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("screening_catalog")
-    .select("*")
-    .eq("user_id", auth.userId)
-    .order("created_at", { ascending: false });
-
-  if (error) return NextResponse.json(databaseError(error), { status: 500 });
-
-  // Use default catalog if user has no custom items
-  if (!data || data.length === 0) {
-    return NextResponse.json(successResponse({ catalog: DEFAULT_CATALOG, isDefault: true }));
-  }
-
-  return NextResponse.json(successResponse({ catalog: data, isDefault: false }));
 }
 
 /**
