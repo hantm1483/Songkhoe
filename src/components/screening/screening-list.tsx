@@ -385,8 +385,9 @@ export function ScreeningLog() {
     }
     const notesObj: Record<string, string> = {};
     if (existingNotes.completed) notesObj.completed = existingNotes.completed;
-    if (editData.location) notesObj.location = editData.location;
     if (rawType === "custom" && editData.customContent) notesObj.customContent = editData.customContent;
+    // Use notes field for location storage
+    if (editData.notes && editData.notes.trim()) notesObj.location = editData.notes.trim();
     const notes = Object.keys(notesObj).length > 0 ? JSON.stringify(notesObj) : null;
 
     if (editData.id?.startsWith("temp-")) {
