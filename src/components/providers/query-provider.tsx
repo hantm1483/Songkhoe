@@ -18,8 +18,8 @@ export function QueryProvider({ children }: QueryProviderProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Default staleTime: 1 minute for user data
-            staleTime: 60 * 1000,
+            // Default staleTime: 5 minutes for better caching
+            staleTime: 5 * 60 * 1000,
             // gcTime: 30 minutes - data stays in cache for 30 mins after last use
             gcTime: 30 * 60 * 1000,
             // Retry failed requests once

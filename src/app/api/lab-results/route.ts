@@ -38,7 +38,14 @@ export async function GET(request: NextRequest) {
     const { data, error, count } = await query;
     if (error) return NextResponse.json(databaseError(error), { status: 500 });
 
-    return NextResponse.json(successResponse({ results: data || [], total: count || 0 }));
+    return NextResponse.json(
+      successResponse({ results: data || [], total: count || 0 }),
+      {
+        headers: {
+          "Cache-Control": "private, max-age=120, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch (err) {
     console.error("Lab results GET error:", err);
     return NextResponse.json(errorResponse("Lỗi server", "SERVER_ERROR"), { status: 500 });
