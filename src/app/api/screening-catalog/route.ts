@@ -21,7 +21,14 @@ const DEFAULT_CATALOG: Omit<ScreeningCatalog, "id" | "user_id" | "created_at" | 
  */
 export async function GET(request: NextRequest) {
   try {
-    const auth = await getAuthContext();
+    let auth;
+    try {
+      auth = await getAuthContext();
+    } catch (authErr) {
+      console.error("Auth error:", authErr);
+      return NextResponse.json(errorResponse("Lỗi xác thực", "AUTH_ERROR"), { status: 401 });
+    }
+
     if (!auth) {
       return NextResponse.json(errorResponse("Không thể xác định người dùng", "AUTH_ERROR"), { status: 401 });
     }
@@ -31,7 +38,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(successResponse({ catalog: DEFAULT_CATALOG, isDefault: true }));
     }
 
-    const supabase = await createClient();
+    let supabase;
+    try {
+      supabase = await createClient();
+    } catch (supabaseErr) {
+      console.error("Supabase client error:", supabaseErr);
+      return NextResponse.json(errorResponse("Lỗi kết nối cơ sở dữ liệu", "DB_CONNECTION_ERROR"), { status: 500 });
+    }
+
     const { data, error } = await supabase
       .from("screening_catalog")
       .select("*")
