@@ -414,10 +414,11 @@ export function ScreeningLog() {
           }
           setLogs(logs.map(l => l.id === editData.id ? newLog : l));
         } else {
-          setError("Lưu thất bại");
+          const json = await res.json();
+          setError(json.error?.message || "Lưu thất bại");
         }
-      } catch {
-        setError("Lưu thất bại");
+      } catch (err) {
+        setError("Lưu thất bại: " + String(err));
       } finally {
         setSaving(false);
         setEditingId(null);
@@ -442,10 +443,11 @@ export function ScreeningLog() {
           const json = await res.json();
           setLogs(logs.map(l => l.id === editData.id ? json.data : l));
         } else {
-          setError("Lưu thất bại");
+          const json = await res.json();
+          setError(json.error?.message || "Lưu thất bại");
         }
-      } catch {
-        setError("Lưu thất bại");
+      } catch (err) {
+        setError("Lưu thất bại: " + String(err));
       } finally {
         setSaving(false);
         setEditingId(null);
