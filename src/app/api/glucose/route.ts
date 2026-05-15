@@ -33,7 +33,15 @@ export async function GET(request: NextRequest) {
   const { data, error, count } = await query;
   if (error) return NextResponse.json(databaseError(error), { status: 500 });
 
-  return NextResponse.json(successResponse({ logs: data || [], count }));
+  // Add cache headers for client-side caching
+  return NextResponse.json(
+    successResponse({ logs: data || [], count }),
+    {
+      headers: {
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+      },
+    }
+  );
 }
 
 /**
