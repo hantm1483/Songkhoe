@@ -313,6 +313,7 @@ export function ScreeningLog() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<LabResult & { customContent: string; location: string }>>({});
+  const [editLevel, setEditLevel] = useState<string>(""); // Separate state for optional assessment level
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const { data: catalogData } = useScreeningCatalog();
@@ -362,6 +363,7 @@ export function ScreeningLog() {
     setLogs([newRow, ...logs]);
     setEditingId(newId);
     setEditData({ ...newRow, customContent: "", location: "" });
+    setEditLevel(""); // Initialize empty for optional assessment
   };
 
   const handleEdit = (log: LabResult) => {
@@ -380,6 +382,7 @@ export function ScreeningLog() {
       customContent: notesObj.customContent || "",
       location: notesObj.location || "",
     });
+    setEditLevel(""); // Initialize empty for optional assessment
   };
 
   const handleSave = async () => {
@@ -462,6 +465,7 @@ export function ScreeningLog() {
         setSaving(false);
         setEditingId(null);
         setEditData({});
+        setEditLevel("");
       }
     } else {
       setSaving(true);
@@ -491,6 +495,7 @@ export function ScreeningLog() {
         setSaving(false);
         setEditingId(null);
         setEditData({});
+        setEditLevel("");
       }
     }
   };
@@ -501,6 +506,7 @@ export function ScreeningLog() {
     }
     setEditingId(null);
     setEditData({});
+    setEditLevel("");
   };
 
   const handleDelete = async (id: string) => {
@@ -736,11 +742,8 @@ export function ScreeningLog() {
                       </td>
                       <td className="py-4 px-2">
                         <select
-                          value={getLevel(editData.value || 0, editData.type as string | null).label}
-                          onChange={(e) => {
-                            // This field is now optional - user can select any value
-                            // The auto-computed value is just a suggestion
-                          }}
+                          value={editLevel}
+                          onChange={(e) => setEditLevel(e.target.value)}
                           className="w-full text-[10px] font-black p-2 rounded-lg bg-white border border-natural-border uppercase"
                         >
                           <option value="">-- Chọn --</option>
