@@ -19,6 +19,15 @@ const LAB_RESULT_TYPE_NAMES: Record<string, string> = {
   other: 'Khác',
 };
 
+// Mapping from type code to catalog content for target lookup
+const TYPE_TO_CONTENT: Record<string, string> = {
+  hba1c: 'HbA1c',
+  glucose: 'Đường huyết lúc đói',
+  blood_pressure: 'Huyết áp',
+  eye_exam: 'Soi đáy mắt',
+  kidney: 'Protein niệu (Thận)',
+};
+
 const getItemTitle = (type: string): string => {
   const found = LAB_RESULT_TYPE_NAMES[type];
   if (found) return found;
@@ -306,6 +315,18 @@ export function ScreeningLog() {
   const [editData, setEditData] = useState<Partial<LabResult & { customContent: string; location: string }>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const { data: catalogData } = useScreeningCatalog();
+  const catalog = catalogData?.catalog || [];
+
+  // Get default target from catalog based on selected type
+  const getDefaultTarget = (type: string | undefined): string => {
+    if (!type || type === "custom") return "";
+    // Find matching catalog item by content name
+    const contentKey = TYPE_TO_CONTENT[type] || LAB_RESULT_TYPE_NAMES[type] || type;
+    const item = catalog.find(c => c.content.toLowerCase().includes(contentKey.toLowerCase()));
+    if (item) return item.target || "";
+    return "";
+  };
 
   useEffect(() => {
     async function loadLogs() {
@@ -618,8 +639,8 @@ export function ScreeningLog() {
               <th className="py-6 pl-8">Nội dung tầm soát</th>
               <th className="py-6 px-4">Chỉ số</th>
               <th className="py-6 px-4">Ngưỡng mục tiêu</th>
-              <th className="py-6 px-4">Mức độ</th>
               <th className="py-6 px-4">Kết quả</th>
+              <th className="py-6 px-4">Đánh giá</th>
               <th className="py-6 px-4">Nơi tầm soát</th>
               <th className="py-6 pr-8 text-right">Thao tác</th>
             </tr>
@@ -656,7 +677,8 @@ export function ScreeningLog() {
                               if (val === "custom") {
                                 setEditData({ ...editData, type: "custom" as any, customContent: "" });
                               } else {
-                                setEditData({ ...editData, type: val as any });
+                                const defaultTarget = getDefaultTarget(val);
+                                setEditData(prev => ({ ...prev, type: val as any, unit: defaultTarget }));
                               }
                             }}
                             className="w-full text-xs font-bold p-2 rounded-lg bg-white border border-natural-border outline-none focus:border-natural-primary uppercase"
@@ -705,23 +727,28 @@ export function ScreeningLog() {
                         />
                       </td>
                       <td className="py-4 px-2">
-                        <select
-                          value={getLevel(editData.value || 0, editData.type as string | null).label}
-                          className="w-full text-[10px] font-black p-2 rounded-lg bg-white border border-natural-border uppercase"
-                        >
-                          <option>An toàn</option>
-                          <option>Tốt</option>
-                          <option>Bình thường</option>
-                          <option>Cao</option>
-                        </select>
-                      </td>
-                      <td className="py-4 px-2">
                         <input
                           type="text"
                           value={editData.value ? `${editData.value} ${editData.unit || ""}` : ""}
                           placeholder="Kết quả"
                           className="w-full text-xs font-bold p-2 rounded-lg bg-white border border-natural-border"
                         />
+                      </td>
+                      <td className="py-4 px-2">
+                        <select
+                          value={getLevel(editData.value || 0, editData.type as string | null).label}
+                          onChange={(e) => {
+                            // This field is now optional - user can select any value
+                            // The auto-computed value is just a suggestion
+                          }}
+                          className="w-full text-[10px] font-black p-2 rounded-lg bg-white border border-natural-border uppercase"
+                        >
+                          <option value="">-- Chọn --</option>
+                          <option>An toàn</option>
+                          <option>Tốt</option>
+                          <option>Bình thường</option>
+                          <option>Cao</option>
+                        </select>
                       </td>
                       <td className="py-4 px-2">
                         <input
@@ -784,16 +811,16 @@ export function ScreeningLog() {
                       </td>
                       <td className="py-6 px-4">
                         <span className="text-xs font-bold text-slate-400 font-mono tracking-tight">
-                          {log.type === 'hba1c' ? '< 7.0%' : '3.9 - 7.2 mmol/L'}
+                          {getDefaultTarget(log.type || undefined)}
                         </span>
+                      </td>
+                      <td className="py-6 px-4">
+                        <p className="text-xs font-bold text-natural-primary-dark">{log.value} {log.unit}</p>
                       </td>
                       <td className="py-6 px-4">
                         <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${level.className}`}>
                           {level.label}
                         </span>
-                      </td>
-                      <td className="py-6 px-4">
-                        <p className="text-xs font-bold text-natural-primary-dark">{log.value} {log.unit}</p>
                       </td>
                       <td className="py-6 px-4">
                         <p className="text-xs font-medium text-slate-500 leading-relaxed max-w-[150px] line-clamp-2">
