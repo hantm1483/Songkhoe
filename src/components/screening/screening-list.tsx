@@ -345,6 +345,23 @@ export function ScreeningLog() {
     loadLogs();
   }, []);
 
+  // Refetch logs when catalog changes (after adding new catalog item)
+  useEffect(() => {
+    if (!loading && catalogData) {
+      const refetchLogs = async () => {
+        try {
+          const res = await fetch("/api/lab-results?limit=50");
+          if (!res.ok) return;
+          const json = await res.json();
+          setLogs(json.data?.results || []);
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      refetchLogs();
+    }
+  }, [catalogData, loading]);
+
   const handleAddRow = () => {
     // Guard: if already editing, don't create new row
     if (editingId !== null) return;
