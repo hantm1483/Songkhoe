@@ -362,22 +362,35 @@ export function ScreeningLog() {
   };
 
   const handleSave = async () => {
-    console.log("handleSave called, editData:", editData);
     const rawType = editData.type as string | undefined;
     const typeValue = rawType === "custom" ? "other" : rawType;
-    console.log("typeValue:", typeValue, "editData.value:", editData.value);
 
-    if (!typeValue || !editData.value) {
-      console.log("Early return: missing type or value");
-      if (editData.id?.startsWith("temp-")) {
-        setLogs(logs.filter(l => l.id !== editData.id));
-      }
-      setEditingId(null);
-      setEditData({});
+    // Validate required fields: Nội dung tầm soát and Ngày
+    if (!typeValue) {
+      setError("Vui lòng chọn Nội dung tầm soát");
       return;
     }
 
-    console.log("Proceeding with save...");
+    if (!editData.recorded_at) {
+      setError("Vui lòng nhập Ngày");
+      return;
+    }
+
+    // Check for duplicate: same type + same date (for new entries)
+    if (editData.id?.startsWith("temp-")) {
+      const dateOnly = editData.recorded_at.split("T")[0];
+      const isDuplicate = logs.some(log => {
+        if (log.type === typeValue && log.recorded_at) {
+          const logDate = log.recorded_at.split("T")[0];
+          return logDate === dateOnly;
+        }
+        return false;
+      });
+      if (isDuplicate) {
+        setError("Đã có dữ liệu tầm soát này trong ngày. Vui lòng chọn ngày khác.");
+        return;
+      }
+    }
 
     // Preserve existing completed status
     let existingNotes: Record<string, string> = {};
@@ -398,20 +411,18 @@ export function ScreeningLog() {
     if (editData.id?.startsWith("temp-")) {
       setSaving(true);
       setError("");
-      console.log("Creating new lab result via POST...");
       try {
         const res = await fetch("/api/lab-results", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: typeValue,
-            value: parseFloat(String(editData.value)),
+            value: parseFloat(String(editData.value)) || 0,
             unit: editData.unit || undefined,
             recordedAt: editData.recorded_at,
             notes: notes,
           }),
         });
-        console.log("POST response status:", res.status);
         if (res.ok) {
           const json = await res.json();
           const newLog = json.data;
@@ -440,7 +451,7 @@ export function ScreeningLog() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: editData.type,
-            value: parseFloat(String(editData.value)),
+            value: parseFloat(String(editData.value)) || 0,
             unit: editData.unit || undefined,
             recordedAt: editData.recorded_at,
             notes: editData.notes || undefined,
