@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { createClient } from "@/lib/supabase/client";
 
 // Types
 interface Article {
@@ -167,28 +166,19 @@ export default function NewsPage() {
 
   useEffect(() => {
     async function fetchArticles() {
-      const supabase = createClient();
       try {
-        const { data, error } = await supabase
-          .from("articles")
-          .select("id, title, excerpt, category, image_url, read_time_minutes, created_at, is_featured, view_count")
-          .order("created_at", { ascending: false })
-          .limit(20);
+        const res = await fetch("/api/articles?limit=20");
+        if (!res.ok) throw new Error("Failed to fetch");
 
-        if (error) {
-          console.error("Error fetching articles:", error);
-          // Use mock data on error
-          setArticles(MOCK_ARTICLES);
-          setFeaturedArticle(MOCK_FEATURED);
-          return;
-        }
+        const json = await res.json();
+        const data = json.data?.articles || [];
 
-        if (data && data.length > 0) {
+        if (data.length > 0) {
           // Find featured article or use first one
-          const featured = data.find((a) => a.is_featured) || data[0];
+          const featured = data.find((a: Article) => a.is_featured) || data[0];
           setFeaturedArticle(featured);
           // Filter out featured, show rest as latest
-          const latest = data.filter((a) => a.id !== featured?.id).slice(0, 10);
+          const latest = data.filter((a: Article) => a.id !== featured?.id).slice(0, 10);
           setArticles(latest);
         } else {
           // No data, use mocks

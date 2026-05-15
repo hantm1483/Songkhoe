@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("articles")
-    .select("id, title, category, content, image_url, created_at")
+    .select("id, title, excerpt, category, content, image_url, created_at, is_featured, view_count, read_time_minutes, author")
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(databaseError(error), { status: 500 });
   }
 
-  return NextResponse.json(successResponse({ articles: data || [], count }));
+  return NextResponse.json(successResponse({ articles: data || [], count: count || 0 }));
 }
 
 /**

@@ -1,4 +1,4 @@
-# Sổ Tay Sức Khỏe - Tổng quan Dự Án
+# Công nghệ & Quy trình VibeCode - Sổ Tay Tiểu Đường
 
 ## 1. Kiến trúc Web (Web Architecture)
 
@@ -8,34 +8,49 @@ Dự án sử dụng **Next.js 14** với kiến trúc **App Router**, triển k
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      Client (Browser)                       │
-│              React 18 + TailwindCSS + Framer Motion        │
+│        React 18 + TailwindCSS + Framer Motion               │
+│        TanStack React Query + AI SDK                        │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Next.js App Router                        │
+│                    Next.js App Router                         │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │  (auth)     │  │  (main)     │  │    API Routes       │ │
-│  │  /login     │  │  /trangchu  │  │  /api/glucose       │ │
-│  │  /register  │  │  /tracking  │  │  /api/medications  │ │
-│  │  /forgot-*  │  │  /bua-an    │  │  /api/meals         │ │
-│  └─────────────┘  │  /thuoc     │  │  /api/lab-results   │ │
-│                   │  /xet-nghiem│  │  /api/chat          │ │
-│                   │  ...        │  │  ...                │ │
-│                   └─────────────┘  └─────────────────────┘ │
+│  │  (auth)     │  │  (main)     │  │    API Routes        │ │
+│  │  /login     │  │  /trangchu  │  │  /api/glucose        │ │
+│  │  /register  │  │  /blood-*   │  │  /api/medications   │ │
+│  │  /forgot-*  │  │  /bua-an    │  │  /api/meals          │ │
+│  │  /reset-*   │  │  /thuoc     │  │  /api/lab-results    │ │
+│  └─────────────┘  │  /xet-nghiem│  │  /api/ai/chat        │ │
+│                   │  /screening │  │  /api/screening-*    │ │
+│                   │  /lifestyle │  │  /api/body-metrics   │ │
+│                   │  /nutrition │  │  ...                 │ │
+│                   │  /health-*  │  └─────────────────────┘ │
+│                   │  /blog      │                            │
+│                   │  /kien-thuc │                            │
+│                   │  /knowledge │                            │
+│                   │  /news      │                            │
+│                   │  /troly-ai   │                            │
+│                   │  ...        │                            │
+│                   └─────────────┘                            │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Supabase Backend                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │ Auth        │  │ Database    │  │ Edge Functions      │ │
-│  │ - Login     │  │ - glucose   │  │ - summarize-lab-*   │ │
-│  │ - Register  │  │ - medications│ │ - chat-*           │ │
-│  │ - Session   │  │ - meals     │  │                    │ │
-│  └─────────────┘  │ - lab_results│ └─────────────────────┘ │
-│                   │ - articles   │                          │
-│                   └─────────────┘                           │
+│  │ Auth        │  │ Database    │  │ AI Integration       │ │
+│  │ - Login     │  │ - glucose   │  │ - @ai-sdk/react      │ │
+│  │ - Register  │  │ - medications│ │ - AI chat routes    │ │
+│  │ - Session   │  │ - meals     │  │                      │ │
+│  │ - RLS       │  │ - lab_results│ └─────────────────────┘ │
+│  └─────────────┘  │ - body_metrics│                        │
+│                   │ - activity_*  │                         │
+│                   │ - screening_*│                         │
+│                   │ - health_*   │                         │
+│                   │ - conversations│                       │
+│                   │ - articles    │                         │
+│                   └─────────────┘                            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -43,44 +58,72 @@ Dự án sử dụng **Next.js 14** với kiến trúc **App Router**, triển k
 ```
 src/
 ├── app/
-│   ├── (auth)/              # Auth routes (login, register, reset-password)
-│   ├── (main)/              # Protected routes (dashboard, tracking, etc.)
-│   │   ├── trangchu/        # Home page
-│   │   ├── tracking/        # Glucose/medication tracking
+│   ├── (auth)/              # Auth routes
+│   │   ├── login/           # Login page
+│   │   ├── register/        # Register page
+│   │   ├── forgot-password/ # Forgot password
+│   │   └── reset-password/  # Reset password
+│   ├── (main)/              # Protected routes
+│   │   ├── trangchu/        # Homepage
+│   │   ├── blood-sugar/     # Blood sugar tracking
 │   │   ├── bua-an/          # Meal planning
 │   │   ├── thuoc/           # Medications
 │   │   ├── xet-nghiem/      # Lab results
-│   │   └── ...
+│   │   ├── screening/      # Health screening
+│   │   ├── nutrition/       # Nutrition planning
+│   │   ├── lifestyle/       # Lifestyle activities
+│   │   ├── health-diary/    # Health diary
+│   │   ├── blog/            # Blog articles
+│   │   ├── kien-thuc/       # Knowledge base
+│   │   ├── knowledge/       # Additional knowledge
+│   │   ├── news/            # News
+│   │   ├── troly-ai/        # AI assistant
+│   │   ├── nhatky/          # Daily diary
+│   │   ├── memory/          # Memory/care
+│   │   └── care/            # Care section
 │   ├── api/                 # API routes
 │   │   ├── glucose/         # Glucose CRUD
 │   │   ├── medications/     # Medications CRUD
 │   │   ├── meals/           # Meals CRUD
 │   │   ├── lab-results/     # Lab results + AI summarize
-│   │   ├── chat/            # AI chat
-│   │   └── conversations/   # Chat history
+│   │   ├── ai/chat/         # AI chat endpoint
+│   │   ├── chat/            # Chat history
+│   │   ├── conversations/  # Conversations management
+│   │   ├── body-metrics/   # Body metrics
+│   │   ├── activity-schedules/# Activity schedules
+│   │   ├── health-events/   # Health events
+│   │   ├── screening-catalog/# Screening catalog
+│   │   ├── articles/        # Articles
+│   │   ├── notifications/   # Push notifications
+│   │   ├── auth/create-profile/# Profile creation
+│   │   └── memorial/        # Memorial features
 │   └── layout.tsx           # Root layout
 ├── components/
-│   ├── ui/                  # Reusable UI components
-│   ├── layout/              # Layout components (Page, Header, BottomNav)
-│   ├── charts/              # Chart components
-│   └── chat/                # Chat components
+│   ├── ui/                  # Base UI components
+│   ├── layout/             # Layout components
+│   ├── charts/             # Chart components
+│   ├── chat/               # Chat components
+│   ├── home/               # Homepage components
+│   ├── blood-sugar/        # Blood sugar components
+│   ├── nutrition/          # Nutrition components
+│   ├── lifestyle/          # Lifestyle components
+│   ├── screening/          # Screening components
+│   ├── providers/          # React Query provider
+│   ├── ai-sidebar/         # AI sidebar
+│   └── blog/               # Blog components
 ├── lib/
-│   ├── supabase/            # Supabase clients (client/server/middleware)
-│   ├── validations.ts       # Zod validation schemas
-│   ├── api-response.ts      # Standardized API responses
-│   └── rate-limit.ts        # Rate limiting
+│   ├── supabase/           # Supabase clients
+│   ├── auth.ts             # Auth helpers
+│   ├── validations.ts     # Zod validation schemas
+│   ├── api-response.ts    # Standardized API responses
+│   ├── rate-limit.ts      # Rate limiting
+│   ├── design-system.ts   # Design tokens
+│   ├── constants.ts       # Constants
+│   └── data-service.ts    # Data service layer
 ├── hooks/
-│   └── use-auth.tsx         # Auth hook
-└── middleware.ts            # Auth middleware
-```
-
-### 1.3 Data Flow
-```
-User Action → React Component → Supabase Client → Supabase DB
-                                ↓
-                         API Route (nếu cần)
-                                ↓
-                         Supabase Edge Function (AI)
+│   └── use-auth.tsx       # Auth hook
+├── types/                 # TypeScript types
+└── middleware.ts          # Auth middleware
 ```
 
 ---
@@ -95,23 +138,34 @@ User Action → React Component → Supabase Client → Supabase DB
 | **TypeScript** | 5.3.0 | Type safety |
 | **Tailwind CSS** | 3.4.0 | Utility-first CSS |
 | **Framer Motion** | 12.38.0 | Animations |
-| **Recharts** | 2.10.0 | Charts (glucose, area charts) |
+| **TanStack React Query** | 5.100.10 | Server state management, caching |
+| **Recharts** | 2.10.0 | Charts |
 | **Lucide React** | 0.460.0 | Icons |
 | **date-fns** | 3.0.0 | Date formatting |
+| **clsx** | 2.1.1 | Conditional classnames |
+| **tailwind-merge** | 2.6.1 | Tailwind class merging |
 
-### 2.2 Backend & Database
+### 2.2 AI Integration
+| Công nghệ | Phiên bản | Mục đích |
+|-----------|-----------|----------|
+| **@ai-sdk/react** | 3.0.179 | AI SDK for React |
+| **@anthropic-ai/sdk** | 0.95.2 | Anthropic Claude SDK |
+| **ai** | 6.0.177 | AI framework for streaming |
+
+### 2.3 Backend & Database
 | Công nghệ | Mục đích |
 |-----------|----------|
 | **Supabase** | Backend-as-a-Service: Auth, Database, Edge Functions, Storage |
 | **@supabase/ssr** | Server-side rendering support for Supabase |
 | **@supabase/supabase-js** | Supabase JavaScript client |
 
-### 2.3 Testing
+### 2.4 Testing
 | Công nghệ | Mục đích |
 |-----------|----------|
 | **Vitest** | Unit testing |
 | **Playwright** | E2E testing |
-| **Testing Library** | React component testing |
+| **@testing-library/react** | React component testing |
+| **@testing-library/user-event** | User event simulation |
 
 ---
 
@@ -147,10 +201,11 @@ Dự án được xây dựng theo phong cách **VibeCode** - tập trung vào t
 ┌─────────────────────────────────────────────────────────────┐
 │  BƯỚC 1: KHỞI TẠO DỰ ÁN                                    │
 ├─────────────────────────────────────────────────────────────┤
-│  - Tạo Next.js project với TypeScript                      │
-│  - Cài đặt dependencies (Supabase, Tailwind, etc.)         │
-│  - Cấu hình Supabase client                                │
-│  - Thiết lập design system (colors, typography, spacing)   │
+│  - Tạo Next.js 14 project với TypeScript                   │
+│  - Cài đặt dependencies (Supabase, Tailwind, AI SDK, etc.)  │
+│  - Cấu hình Supabase client (client/server/middleware)     │
+│  - Thiết lập design system (colors, typography, spacing)    │
+│  - Cấu hình TanStack React Query provider                  │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -158,46 +213,58 @@ Dự án được xây dựng theo phong cách **VibeCode** - tập trung vào t
 │  BƯỚC 2: XÂY DỰNG BACKEND (Supabase)                        │
 ├─────────────────────────────────────────────────────────────┤
 │  - Tạo Supabase project                                    │
-│  - Thiết kế database schema (glucose_logs, medications...) │
-│  - Cấu hình Row Level Security (RLS)                      │
-│  - Tạo API routes trong Next.js                           │
+│  - Thiết kế database schema (glucose_logs, medications,     │
+│    meals, lab_results, body_metrics, etc.)                 │
+│  - Cấu hình Row Level Security (RLS)                       │
+│  - Tạo API routes trong Next.js                            │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  BƯỚC 3: XÂY DỰNG UI COMPONENTS                            │
 ├─────────────────────────────────────────────────────────────┤
-│  - Tạo base UI components (Button, Card, Input, Badge...)  │
-│  - Xây dựng layout components (Page, Header, BottomNav)   │
-│  - Tạo specialized components (Chart, Chat components)   │
+│  - Tạo base UI components (Button, Card, Input, Badge...) │
+│  - Xây dựng layout components (Page, Header, BottomNav)    │
+│  - Tạo specialized components (Charts, Chat, AI Sidebar)   │
+│  - Xây dựng feature components (BloodSugar, Nutrition...)  │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  BƯỚC 4: KẾT NỐI UI VỚI API                               │
+│  BƯỚC 4: KẾT NỐI UI VỚI API                                │
 ├─────────────────────────────────────────────────────────────┤
-│  - Sử dụng Supabase client trực tiếp từ client components │
-│  - Hook useEffect để fetch data                            │
-│  - Xử lý form và gọi Supabase insert/update                │
-│  - Hiển thị data từ Supabase                               │
+│  - Sử dụng TanStack React Query cho data fetching/caching    │
+│  - Tạo API routes cho tất cả data operations               │
+│  - Xử lý form và gọi API insert/update                      │
+│  - Hiển thị data với loading states và error handling       │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  BƯỚC 5: AUTHENTICATION                                    │
+│  BƯỚC 5: AI INTEGRATION                                   │
+├─────────────────────────────────────────────────────────────┤
+│  - Cấu hình AI SDK (@ai-sdk/react)                          │
+│  - Tạo AI chat API routes                                  │
+│  - Xây dựng chat UI components                             │
+│  - Tích hợp AI vào các feature (lab results summarization)  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  BƯỚC 6: AUTHENTICATION                                   │
 ├─────────────────────────────────────────────────────────────┤
 │  - Cấu hình Supabase Auth                                  │
 │  - Tạo middleware bảo vệ routes                            │
-│  - Xây dựng login/register pages                           │
-│  - Protected routes với auth check                        │
+│  - Xây dựng login/register/forgot-password pages          │
+│  - Protected routes với auth check                         │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  BƯỚC 6: TESTING & DEPLOYMENT                              │
+│  BƯỚC 7: TESTING & DEPLOYMENT                              │
 ├─────────────────────────────────────────────────────────────┤
-│  - Viết unit tests với Vitest                              │
-│  - Viết E2E tests với Playwright                           │
+│  - Viết unit tests với Vitest                               │
+│  - Viết E2E tests với Playwright                            │
 │  - Deploy lên Vercel                                       │
 │  - CI/CD với GitHub Actions                                │
 └─────────────────────────────────────────────────────────────┘
@@ -208,118 +275,158 @@ Dự án được xây dựng theo phong cách **VibeCode** - tập trung vào t
 | Nguyên tắc | Mô tả |
 |------------|-------|
 | **Fast Iteration** | Sử dụng AI để generate code nhanh, test sớm |
-| **Copy-Paste Friendly** | Tận dụng components có sẵn từ shadcn/ui, Tailwind |
+| **Copy-Paste Friendly** | Tận dụng components có sẵn từ Tailwind, shadcn/ui patterns |
 | **Convention over Configuration** | Follow established patterns (Next.js App Router) |
 | **Iterative Refinement** | Code xong → test → fix → improve liên tục |
 | **AI-Assisted Development** | AI giúp generate boilerplate, refactor, debug |
+| **Server State Management** | Sử dụng TanStack React Query cho caching và sync |
 
-### 4.4 Supabase Integration Pattern
+### 4.4 API Pattern với TanStack React Query
 ```typescript
-// Client-side: Direct Supabase access
-import { createClient } from "@/lib/supabase/client";
+// Sử dụng React Query hooks
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { createClient } from '@/lib/supabase/client';
 
 const supabase = createClient();
 
-// Fetch data
-const { data, error } = await supabase
-  .from("glucose_logs")
-  .select("*")
-  .order("measured_at", { ascending: false });
+// Query hook
+export function useGlucoseLogs() {
+  return useQuery({
+    queryKey: ['glucose'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('glucose_logs')
+        .select('*')
+        .order('measured_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
 
-// Insert data
-const { data, error } = await supabase
-  .from("glucose_logs")
-  .insert({ user_id, value, timing, notes });
+// Mutation hook
+export function useAddGlucose() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (newLog: GlucoseLog) => {
+      const { error } = await supabase.from('glucose_logs').insert(newLog);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['glucose'] });
+    },
+  });
+}
 ```
 
 ### 4.5 API Response Pattern
 ```typescript
 // Standardized response helpers
-import { successResponse, errorResponse, validationError } from "@/lib/api-response";
+import { successResponse, errorResponse, validationError } from '@/lib/api-response';
 
 // Success
 return NextResponse.json(successResponse({ data }));
 
 // Error
-return NextResponse.json(errorResponse("Message"), { status: 400 });
+return NextResponse.json(errorResponse('Message'), { status: 400 });
+```
+
+### 4.6 AI Chat Integration Pattern
+```typescript
+// AI chat route
+import { anthropic } from '@ai-sdk/anthropic';
+import { streamText } from 'ai';
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = await streamText({
+    model: anthropic('claude-3-5-sonnet-20241020'),
+    messages,
+  });
+
+  return result.toDataStreamResponse();
+}
 ```
 
 ---
 
-## 5. Những vấn đề cần khắc phục (Issues to Address)
+## 5. Database Schema (Supabase)
 
-### 5.1 Kiến trúc & Design
+### 5.1 Core Tables
+- **glucose_logs** - Blood glucose readings
+- **medications** - Medication tracking
+- **meals** - Meal records with carb counting
+- **lab_results** - Lab test results with AI summaries
+- **body_metrics** - Weight, height, BMI tracking
 
-| Vấn đề | Mô tả | Khuyến nghị |
-|--------|-------|-------------|
-| **Direct Supabase access từ Client** | UI gọi Supabase trực tiếp thay vì qua API routes | Tạo API routes cho tất cả data operations, UI chỉ gọi API |
-| **Không có state management** | Dữ liệu được fetch trực tiếp, không cache | Thêm React Query hoặc SWR để cache và sync data |
-| **Design system chưa hoàn chỉnh** | Colors, typography có trong tailwind nhưng không có documentation | Tạo design tokens documentation |
-| **Mock data trong code** | `MOCK_ARTICLES`, mock readings vẫn còn trong code | Sử dụng feature flags hoặc chỉ mock khi không có Supabase |
+### 5.2 Health & Lifestyle
+- **activity_schedules** - Exercise/activity planning
+- **health_events** - Health diary events
+- **conversations** - AI chat history
+- **screening_catalog** - Health screening schedules
 
-### 5.2 Security
-
-| Vấn đề | Mô tả | Khuyến nghị |
-|--------|-------|-------------|
-| **Auth checks lặp lại** | Mỗi API route đều check auth riêng | Tạo shared auth middleware/helper |
-| **Không có input sanitization** | User input được validate nhưng có thể thiếu XSS protection | Thêm sanitization layer |
-| **Rate limiting mới chỉ ở AI summary** | Chỉ có rate limit cho `/api/lab-results/summarize` | Thêm rate limiting cho tất cả API routes |
-
-### 5.3 Performance
-
-| Vấn đề | Mô tả | Khuyến nghị |
-|--------|-------|-------------|
-| **Client-side fetching không tối ưu** | Mỗi page đều fetch riêng, không có loading states | Thêm Suspense boundaries, skeleton loading |
-| **Không có data prefetching** | Navigation không prefetch data của page tiếp theo | Sử dụng Next.js Link prefetch |
-| **Không có error boundary** | Error không được handle gracefully | Thêm ErrorBoundary components |
-
-### 5.4 Code Quality
-
-| Vấn đề | Mô tả | Khuyến nghị |
-|--------|-------|-------------|
-| **File size lớn** | Một số component > 200 lines (tracking/page.tsx ~ 1000 lines) | Tách thành smaller components |
-| **Không có shared API client** | Validations, API responses được lặp lại | Tạo shared API client library |
-| **Types không đồng nhất** | Có `database.types.ts` nhưng vẫn dùng ad-hoc interfaces | Centralize all types |
-
-### 5.5 Testing
-
-| Vấn đề | Mô tả | Khuyến nghị |
-|--------|-------|-------------|
-| **Unit tests chỉ có basic components** | Button, Input, Card được test nhưng business logic không | Thêm tests cho hooks, API routes, business logic |
-| **Không có integration tests** | Chưa test API routes với Supabase | Thêm integration tests |
-| **E2E tests chưa đầy đủ** | Playwright config có nhưng tests chưa đủ | Viết E2E cho critical user flows |
-
-### 5.6 Development Workflow
-
-| Vấn đề | Mô tả | Khuyến nghị |
-|--------|-------|-------------|
-| **Không có commit conventions enforcement** | Conventional commits nhưng không enforced | Thêm commitlint, pre-commit hooks |
-| **Không có changelog tự động** | Manual changelog | Thêm automated changelog với semantic-release |
-| **Git workflow chưa rõ ràng** | Không có branch naming convention, PR template | Thêm CONTRIBUTING.md, PR template |
-
-### 5.7 Documentation
-
-| Vấn đề | Mô tả | Khuyến nghị |
-|--------|-------|-------------|
-| **Không có API documentation** | API routes không có OpenAPI/Swagger | Thêm API docs |
-| **Không có database schema docs** | Schema chỉ trong Supabase dashboard | Thêm schema.md trong docs/ |
-| **Components không có docs** | Storybook không được setup | Thêm Storybook hoặc inline docs |
+### 5.3 Content
+- **articles** - Educational articles
+- **memorial_quotes/stories/photos** - Memorial features
 
 ---
 
-## 6. Tóm tắt & Ưu tiên
+## 6. Đặc điểm nổi bật
 
-### Ưu tiên cao (Cần làm ngay)
-1. **Tái cấu trúc API** - UI nên gọi API routes thay vì Supabase trực tiếp
-2. **Thêm state management** - React Query/SWR
-3. **Hoàn thiện tests** - Integration tests cho API routes
+### 6.1 AI Integration
+- AI chat assistant với Claude
+- Lab results AI summarization
+- Floating AI sidebar cho context-aware assistance
 
-### Ưu tiên trung bình (Nên làm)
-4. **Tối ưu performance** - Loading states, prefetching
-5. **Centralize types** - Đồng nhất type definitions
-6. **Security improvements** - Shared auth middleware, rate limiting cho tất cả routes
+### 6.2 Data Visualization
+- Glucose charts với Recharts
+- Activity schedules
+- Nutrition planning với carb calculator
 
-### Ưu tiên thấp (Có thể bỏ qua ban đầu)
-7. **Documentation** - API docs, Storybook
-8. **Automated changelog**
-9. **Design tokens documentation**
+### 6.3 State Management
+- TanStack React Query cho server state
+- Optimistic updates cho better UX
+- Background refetching và cache management
+
+---
+
+## 7. Các vấn đề cần lưu ý
+
+### 7.1 Security
+- Row Level Security (RLS) trên tất cả tables
+- Auth middleware cho protected routes
+- Rate limiting trên API routes
+- Input validation với Zod
+
+### 7.2 Performance
+- React Query caching để giảm API calls
+- Loading states và skeleton UI
+- Error boundaries cho graceful error handling
+
+### 7.3 Code Quality
+- File size dưới 200 lines cho components
+- Shared API response helpers
+- Centralized type definitions
+- Validation schemas trong lib/validations.ts
+
+---
+
+## 8. Development Commands
+
+```bash
+# Development
+npm run dev          # Start dev server
+
+# Build & Type Check
+npm run build        # Production build
+npm run typecheck    # TypeScript checking
+
+# Testing
+npm run test         # Run tests (Vitest)
+npm run test:ci      # CI mode tests
+npm run coverage     # Coverage report
+
+# Linting
+npm run lint         # ESLint check
+```
