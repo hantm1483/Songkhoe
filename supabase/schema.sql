@@ -88,8 +88,8 @@ DROP TABLE IF EXISTS public.lab_results CASCADE;
 CREATE TABLE IF NOT EXISTS public.lab_results (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID, -- Removed FK for demo flexibility
-  type TEXT CHECK (type IN ('hba1c', 'glucose', 'blood_pressure', 'eye_exam', 'kidney', 'cholesterol', 'creatinine', 'other')),
-  value DECIMAL(6,2) NOT NULL,
+  type TEXT, -- No CHECK constraint - stores any type from screening_catalog
+  value DECIMAL(6,2), -- Nullable - not all screenings have numeric values
   unit TEXT,
   recorded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   notes TEXT,
