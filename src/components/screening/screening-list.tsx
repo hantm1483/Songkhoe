@@ -661,13 +661,6 @@ export function ScreeningLog() {
                               onChange={(e) => setEditData({ ...editData, recorded_at: e.target.value })}
                               className="w-full text-[10px] font-bold p-1 rounded-md bg-white border border-natural-border"
                             />
-                            <input
-                              type="text"
-                              value={editData.location || ""}
-                              onChange={(e) => setEditData({ ...editData, location: e.target.value })}
-                              placeholder="Nơi tầm soát"
-                              className="w-full text-[10px] font-medium p-1 rounded-md bg-white border border-natural-border"
-                            />
                           </div>
                         </div>
                       </td>
@@ -714,7 +707,7 @@ export function ScreeningLog() {
                           type="text"
                           value={editData.notes || ""}
                           onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
-                          placeholder="Lưu ý"
+                          placeholder="Nơi tầm soát"
                           className="w-full text-xs font-bold p-2 rounded-lg bg-white border border-natural-border"
                         />
                       </td>
