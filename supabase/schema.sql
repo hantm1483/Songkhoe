@@ -261,6 +261,25 @@ CREATE TABLE IF NOT EXISTS public.body_metrics (
 );
 
 -- ============================================
+-- SCREENING CATALOG (Danh mục tầm soát)
+-- ============================================
+DROP TABLE IF EXISTS public.screening_catalog CASCADE;
+CREATE TABLE IF NOT EXISTS public.screening_catalog (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID,
+  content VARCHAR NOT NULL,
+  target VARCHAR,
+  frequency VARCHAR,
+  meaning TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Unique constraint per user (no duplicate content)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_screening_catalog_user_content
+ON public.screening_catalog (user_id, content) WHERE user_id IS NOT NULL;
+
+-- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
 
@@ -279,6 +298,7 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notification_schedules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rate_limits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.screening_catalog ENABLE ROW LEVEL SECURITY;
 
 -- Profiles: Users can only see/edit their own profile
 CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
@@ -384,6 +404,12 @@ CREATE POLICY "Users can insert own body metrics" ON public.body_metrics FOR INS
 CREATE POLICY "Users can update own body metrics" ON public.body_metrics FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own body metrics" ON public.body_metrics FOR DELETE USING (auth.uid() = user_id);
 
+-- Screening Catalog: Users can CRUD own catalog items
+CREATE POLICY "Users can view own screening catalog" ON public.screening_catalog FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own screening catalog" ON public.screening_catalog FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own screening catalog" ON public.screening_catalog FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own screening catalog" ON public.screening_catalog FOR DELETE USING (auth.uid() = user_id);
+
 -- ============================================
 -- INDEXES
 -- ============================================
@@ -400,8 +426,9 @@ CREATE INDEX IF NOT EXISTS idx_activity_schedules_user ON public.activity_schedu
 CREATE INDEX IF NOT EXISTS idx_activity_schedules_date ON public.activity_schedules(scheduled_date DESC);
 CREATE INDEX IF NOT EXISTS idx_body_metrics_user ON public.body_metrics(user_id);
 CREATE INDEX IF NOT EXISTS idx_body_metrics_date ON public.body_metrics(record_date DESC);
+CREATE INDEX IF NOT EXISTS idx_screening_catalog_user_id ON public.screening_catalog(user_id);
 
 -- ============================================
 -- COMPLETION MESSAGE
 -- ============================================
-SELECT 'Schema created successfully! Tables: profiles, glucose_logs, medications, medication_logs, meals, lab_results, articles, memorial_photos, memorial_quotes, memorial_stories, conversations, messages, push_subscriptions, notification_schedules, rate_limits, health_events, activity_schedules, body_metrics' as status;
+SELECT 'Schema created successfully! Tables: profiles, glucose_logs, medications, medication_logs, meals, lab_results, articles, memorial_photos, memorial_quotes, memorial_stories, conversations, messages, push_subscriptions, notification_schedules, rate_limits, health_events, activity_schedules, body_metrics, screening_catalog' as status;
