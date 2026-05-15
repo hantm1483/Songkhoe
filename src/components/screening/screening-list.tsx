@@ -362,10 +362,13 @@ export function ScreeningLog() {
   };
 
   const handleSave = async () => {
+    console.log("handleSave called, editData:", editData);
     const rawType = editData.type as string | undefined;
     const typeValue = rawType === "custom" ? "other" : rawType;
+    console.log("typeValue:", typeValue, "editData.value:", editData.value);
 
     if (!typeValue || !editData.value) {
+      console.log("Early return: missing type or value");
       if (editData.id?.startsWith("temp-")) {
         setLogs(logs.filter(l => l.id !== editData.id));
       }
@@ -373,6 +376,8 @@ export function ScreeningLog() {
       setEditData({});
       return;
     }
+
+    console.log("Proceeding with save...");
 
     // Preserve existing completed status
     let existingNotes: Record<string, string> = {};
@@ -393,6 +398,7 @@ export function ScreeningLog() {
     if (editData.id?.startsWith("temp-")) {
       setSaving(true);
       setError("");
+      console.log("Creating new lab result via POST...");
       try {
         const res = await fetch("/api/lab-results", {
           method: "POST",
@@ -405,6 +411,7 @@ export function ScreeningLog() {
             notes: notes,
           }),
         });
+        console.log("POST response status:", res.status);
         if (res.ok) {
           const json = await res.json();
           const newLog = json.data;
